@@ -9,6 +9,7 @@ import {
   Text,
   useToast,
   Link,
+  Select,
 } from "@chakra-ui/react";
 import axios from "axios";
 import { get } from "lodash";
@@ -34,7 +35,7 @@ function getVersionList(
         sortOrder: 0,
       },
     ],
-    flags: 8704,
+    flags: 402,
   };
   const headers = {
     "Content-Type": "application/json",
@@ -45,8 +46,11 @@ function getVersionList(
   return axios
     .post(url, payload, { headers })
     .then((response) => {
-      const versions = response.data.results[0].extensions.map(
-        (extension: any) => extension.versions[0].version
+      console.log(response.data);
+      const versions = response.data.results[0].extensions[0].versions.map(
+        (each: any) => {
+          return each.version;
+        }
       );
       return versions;
     })
@@ -59,13 +63,19 @@ function getVersionList(
 export default function VSCodeDownloader() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [versions, setVersions] = useState<string[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
+  const [publisher, setPublisher] = useState("");
+  const [extension, setExtension] = useState("");
   const toast = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setDownloadUrl("");
+    setVersions([]);
+    setSelectedVersion("");
 
     try {
       // 从 URL 中提取发布者和扩展名
@@ -75,37 +85,26 @@ export default function VSCodeDownloader() {
         throw new Error("无效的插件 URL");
       }
 
-      const [publisher, extension] = itemName.split(".");
+      const [pub, ext] = itemName.split(".");
+      setPublisher(pub);
+      setExtension(ext);
 
-      getVersionList(publisher, extension)
-        .then((versions) => {
-          if (versions.length === 0) {
-            throw new Error("未找到插件版本");
-          }
-          // 选择最新版本
-          const latestVersion = versions[0];
-          // 构建下载 URL
-          const downloadUrl = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${publisher}/vsextensions/${extension}/${latestVersion}/vspackage`;
-          setDownloadUrl(downloadUrl);
-          console.log(downloadUrl);
-          toast({
-            title: "解析成功",
-            description: "已找到下载链接",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
-        })
-        .catch((error) => {
-          toast({
-            title: "解析失败",
-            description:
-              error instanceof Error ? error.message : "请检查 URL 是否正确",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-        });
+      // 获取版本列表
+      const versionList = await getVersionList(pub, ext);
+      if (versionList.length === 0) {
+        throw new Error("未找到插件版本");
+      }
+
+      setVersions(versionList);
+      setSelectedVersion(versionList[0]);
+
+      toast({
+        title: "解析成功",
+        description: "已找到可用版本",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
     } catch (error) {
       toast({
         title: "解析失败",
@@ -118,6 +117,12 @@ export default function VSCodeDownloader() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVersionChange = (version: string) => {
+    setSelectedVersion(version);
+    const downloadUrl = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${publisher}/vsextensions/${extension}/${version}/vspackage`;
+    setDownloadUrl(downloadUrl);
   };
 
   return (
@@ -137,6 +142,20 @@ export default function VSCodeDownloader() {
         >
           解析下载链接
         </Button>
+
+        {versions.length > 0 && (
+          <Select
+            value={selectedVersion}
+            onChange={(e) => handleVersionChange(e.target.value)}
+            size="lg"
+          >
+            {versions.map((version) => (
+              <option key={version} value={version}>
+                {version}
+              </option>
+            ))}
+          </Select>
+        )}
 
         {downloadUrl && (
           <Box w="100%" p={4} borderWidth={1} borderRadius="md">
