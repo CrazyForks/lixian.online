@@ -38,8 +38,13 @@ class VSCodeService {
     };
   }
 
-  async getVersionList(extensionInfo: ExtensionInfo): Promise<string[]> {
+  async getVersionList(
+    extensionInfo: ExtensionInfo,
+    maxVersions = 20,
+  ): Promise<string[]> {
     const url = `https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery`;
+    // flags: 0x1 (Versions) | 0x200 (IncludeLatestVersionOnly excluded)
+    // Use 0x1 to only request version strings without heavy asset/file metadata
     const payload = {
       filters: [
         {
@@ -50,12 +55,12 @@ class VSCodeService {
             },
           ],
           pageNumber: 1,
-          pageSize: 100,
+          pageSize: 1,
           sortBy: 0,
           sortOrder: 0,
         },
       ],
-      flags: 402,
+      flags: 0x1,
     };
 
     const response = await post(url, payload, VSCODE_API_HEADERS);
@@ -66,7 +71,8 @@ class VSCodeService {
     }
 
     const versionList: { version: string }[] = extensions[0].versions ?? [];
-    return versionList.map((v) => v.version).filter(Boolean);
+    const unique = [...new Set(versionList.map((v) => v.version).filter(Boolean))];
+    return unique.slice(0, maxVersions);
   }
 
   async getDownloadUrl(extensionInfo: ExtensionInfo): Promise<string> {

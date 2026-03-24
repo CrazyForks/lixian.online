@@ -30,7 +30,7 @@ export default function Home() {
         </div>
 
         {/* Main Card */}
-        <Card className="shadow-apple-lg border-0 bg-card/80 backdrop-blur-xl rounded-apple-lg overflow-hidden animate-slide-up">
+        <Card className="shadow-apple-lg border-0 bg-card/80 backdrop-blur-xl rounded-apple-lg overflow-visible animate-slide-up">
           <CardContent className="p-0">
             <div className="border-b border-border/40 px-3 sm:px-6 pt-4 sm:pt-6 pb-0">
               <Tabs
@@ -67,9 +67,15 @@ export default function Home() {
 
             {/* Tab Content */}
             <div className="p-5 sm:p-8 md:p-10">
-              {activeTab === "vscode" && <VSCodeDownloader />}
-              {activeTab === "chrome" && <ChromeDownloader />}
-              {activeTab === "docker" && <DockerDownloader />}
+              <div className={activeTab !== "vscode" ? "hidden" : undefined}>
+                <VSCodeDownloader />
+              </div>
+              <div className={activeTab !== "chrome" ? "hidden" : undefined}>
+                <ChromeDownloader />
+              </div>
+              <div className={activeTab !== "docker" ? "hidden" : undefined}>
+                <DockerDownloader />
+              </div>
             </div>
           </CardContent>
         </Card>

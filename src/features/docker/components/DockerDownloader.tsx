@@ -1,12 +1,6 @@
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/select";
+import { SearchableSelect } from "@/shared/ui/searchable-select";
 import { useToast } from "@/hooks/useToast";
 import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
@@ -112,26 +106,12 @@ export default function DockerDownloader() {
       </Button>
 
       {tagList.length > 0 && (
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-foreground">
-            选择标签
-          </label>
-          <Select
-            value={imageInfo?.tag || ""}
-            onValueChange={onTagChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="选择标签" />
-            </SelectTrigger>
-            <SelectContent>
-              {tagList.map((tag) => (
-                <SelectItem key={tag} value={tag}>
-                  {tag}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <SearchableSelect
+          value={imageInfo?.tag || ""}
+          options={tagList}
+          placeholder="选择标签"
+          onValueChange={onTagChange}
+        />
       )}
 
       {imageNotFound && imageInfo && (

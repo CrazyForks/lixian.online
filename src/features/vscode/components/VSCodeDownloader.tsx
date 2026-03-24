@@ -1,16 +1,10 @@
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/select";
+import { SearchableSelect } from "@/shared/ui/searchable-select";
 import { useToast } from "@/hooks/useToast";
 import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
-import { Download, Link as LinkIcon, Package, ChevronDown } from "lucide-react";
+import { Download, Link as LinkIcon, Package } from "lucide-react";
 import { useVSCodeDownloader } from "../hooks/useVSCodeDownloader";
 
 export default function VSCodeDownloader() {
@@ -98,26 +92,12 @@ export default function VSCodeDownloader() {
       </Button>
 
       {versionList.length > 0 && (
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-foreground">
-            选择版本
-          </label>
-          <Select
-            value={extensionInfo?.version || ""}
-            onValueChange={onVersionChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="选择版本" />
-            </SelectTrigger>
-            <SelectContent>
-              {versionList.map((version) => (
-                <SelectItem key={version} value={version}>
-                  {version}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <SearchableSelect
+          value={extensionInfo?.version || ""}
+          options={versionList}
+          placeholder="选择版本"
+          onValueChange={onVersionChange}
+        />
       )}
 
       {extensionInfo?.version && downloadUrl && (
