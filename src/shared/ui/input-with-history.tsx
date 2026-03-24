@@ -104,6 +104,8 @@ export function InputWithHistory({
         <Input
           value={value}
           onFocus={() => setOpen(true)}
+          autoComplete="off"
+          data-1p-ignore
           {...inputProps}
         />
       </div>

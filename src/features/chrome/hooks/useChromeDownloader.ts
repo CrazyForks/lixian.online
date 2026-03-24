@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { chromeService } from "../api/ChromeService";
-import { ChromeExtensionInfo, ChromeDownloadProgress } from "../types";
+import { ChromeExtensionInfo, ChromeDownloadProgress, ChromeSearchResult } from "../types";
 
 export function useChromeDownloader() {
   const [extensionUrl, setExtensionUrl] = useState("");
@@ -8,9 +8,12 @@ export function useChromeDownloader() {
   const [downloadProgress, setDownloadProgress] = useState<ChromeDownloadProgress | null>(null);
   const [downloadUrls, setDownloadUrls] = useState<{crx?: string; zip?: string}>({});
   const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<ChromeSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
 
   // Track active blob URLs so they can be revoked on re-download or unmount
   const blobUrlsRef = useRef<string[]>([]);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     return () => {
@@ -43,14 +46,66 @@ export function useChromeDownloader() {
     setDownloadProgress(null);
   }, []);
 
+  // 搜索 Chrome 扩展
+  const handleSearch = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    // 如果输入的已经是扩展 ID，不搜索
+    if (/^[a-z]{32}$/.test(trimmed)) {
+      setSearchResults([]);
+      return;
+    }
+
+    // 如果输入的是 URL（包含 . 或 / ），不搜索
+    if (/[./]/.test(trimmed)) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const results = await chromeService.searchExtensions(trimmed);
+      setSearchResults(results);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  // debounce search
+  const onSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onUrlChange(e);
+    const val = e.target.value;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => handleSearch(val), 400);
+  }, [onUrlChange, handleSearch]);
+
+  const selectSearchResult = useCallback((result: ChromeSearchResult) => {
+    setExtensionUrl(result.id);
+    setExtensionInfo({
+      id: result.id,
+      name: result.name,
+      version: "Unknown",
+    });
+    setSearchResults([]);
+    setDownloadUrls({});
+    setDownloadProgress(null);
+  }, []);
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       setLoading(true);
+      setSearchResults([]);
 
       try {
         if (!extensionUrl) {
-          throw new Error("请输入 Chrome 扩展 URL 或 ID");
+          throw new Error("请输入 Chrome 扩展名称或 ID");
         }
 
         const extensionId = chromeService.extractExtensionId(extensionUrl);
@@ -92,16 +147,11 @@ export function useChromeDownloader() {
       
       const response = await fetch(downloadInfo.downloadUrl);
       if (!response.ok) {
-        // 尝试解析错误信息
         let errorMessage = `下载失败: ${response.statusText}`;
         try {
           const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch {
-          // 如果不是 JSON 响应，使用默认错误信息
-        }
+          if (errorData.error) errorMessage = errorData.error;
+        } catch { /* ignore */ }
         throw new Error(errorMessage);
       }
 
@@ -120,43 +170,22 @@ export function useChromeDownloader() {
         urls.crx = crxUrl;
       }
 
-      // 如果需要 ZIP 格式，转换 CRX 为 ZIP
       if (format === 'zip' || format === 'both') {
         setDownloadProgress(prev => prev ? { ...prev, status: 'converting' } : null);
-        
         try {
           const zipBlob = await chromeService.convertCrxToZip(crxBlob);
           const zipUrl = URL.createObjectURL(zipBlob);
           blobUrlsRef.current.push(zipUrl);
           urls.zip = zipUrl;
-          
-          // 检查转换是否实际成功（文件大小变化等）
-          if (zipBlob.size === crxBlob.size) {
-            console.log('文件大小相同，可能无需转换或已经是 ZIP 格式');
-          }
-          
         } catch (error) {
           console.warn('CRX 转 ZIP 失败:', error);
-          
-          // 降级策略：提供原始 CRX 文件
-          if (!urls.crx) {
-            urls.crx = crxUrl;
-          }
-          
-          // 如果用户只要求 ZIP 格式，提供 CRX 作为备选
-          if (format === 'zip') {
-            urls.crx = crxUrl;
-            console.log('ZIP 转换失败，提供 CRX 格式作为备选');
-          }
+          if (!urls.crx) urls.crx = crxUrl;
+          if (format === 'zip') urls.crx = crxUrl;
         }
       }
 
       setDownloadUrls(urls);
-      setDownloadProgress(prev => prev ? {
-        ...prev,
-        status: 'completed',
-        progress: 100
-      } : null);
+      setDownloadProgress(prev => prev ? { ...prev, status: 'completed', progress: 100 } : null);
 
     } catch (error) {
       setDownloadProgress(prev => prev ? {
@@ -176,7 +205,10 @@ export function useChromeDownloader() {
     downloadProgress,
     downloadUrls,
     loading,
-    onUrlChange,
+    searchResults,
+    searching,
+    onUrlChange: onSearchInputChange,
+    selectSearchResult,
     handleSubmit,
     handleDownload,
   };

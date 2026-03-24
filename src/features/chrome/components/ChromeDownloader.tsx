@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/useToast";
 import { useHistory } from "@/hooks/useHistory";
 import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
-import { Download, Globe, FileArchive, Package, Info } from "lucide-react";
+import { Download, Globe, FileArchive, Package, Info, Search, Loader2 } from "lucide-react";
 import { useChromeDownloader } from "../hooks/useChromeDownloader";
 
 export default function ChromeDownloader() {
@@ -16,7 +16,10 @@ export default function ChromeDownloader() {
     downloadProgress,
     downloadUrls,
     loading,
+    searchResults,
+    searching,
     onUrlChange,
+    selectSearchResult,
     handleSubmit,
     handleDownload,
   } = useChromeDownloader();
@@ -60,7 +63,7 @@ export default function ChromeDownloader() {
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
       <div className="space-y-3">
         <InputWithHistory
-          placeholder="chrome.google.com/webstore/detail/... 或 32 位扩展 ID"
+          placeholder="搜索扩展名称，或输入 32 位扩展 ID"
           value={extensionUrl}
           onChange={onUrlChange}
           history={history.items}
@@ -69,8 +72,32 @@ export default function ChromeDownloader() {
           }
         />
         <p className="text-xs text-muted-foreground">
-          粘贴 Chrome 扩展页面链接或 ID
+          输入关键词搜索 Chrome 扩展，或直接粘贴扩展 ID
         </p>
+        {searching && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            搜索中...
+          </div>
+        )}
+        {searchResults.length > 0 && (
+          <div className="rounded-apple border border-border bg-popover p-1 space-y-0.5">
+            {searchResults.map((result) => (
+              <button
+                key={result.id}
+                type="button"
+                onClick={() => {
+                  selectSearchResult(result);
+                }}
+                className="flex w-full items-center gap-2.5 rounded-apple-sm px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+              >
+                <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                <span className="truncate">{result.name}</span>
+                <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">{result.id.slice(0, 8)}…</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 mt-1">
           {[
             { label: "uBlock Origin", value: "cjpalhdlnbpafiamejdnhcphjbkeiagm" },

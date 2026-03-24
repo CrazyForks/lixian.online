@@ -1,4 +1,5 @@
-import { ChromeExtensionInfo, ChromeDownloadInfo } from "@/features/chrome/types";
+import { ChromeExtensionInfo, ChromeDownloadInfo, ChromeSearchResult } from "@/features/chrome/types";
+import { get } from "@/shared/lib/http";
 
 class ChromeService {
   // 从 Chrome Web Store URL 中提取扩展 ID
@@ -156,6 +157,17 @@ class ChromeService {
       // 返回原文件作为备选方案
       console.warn('转换失败，返回原始文件');
       return crxBlob;
+    }
+  }
+
+  // 搜索 Chrome 扩展
+  async searchExtensions(query: string): Promise<ChromeSearchResult[]> {
+    try {
+      const response = await get(`/api/chrome/search?q=${encodeURIComponent(query)}`, {});
+      return response.data?.results ?? [];
+    } catch (error) {
+      console.warn('搜索 Chrome 扩展失败:', error);
+      return [];
     }
   }
 

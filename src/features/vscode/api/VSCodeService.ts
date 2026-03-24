@@ -74,7 +74,7 @@ class VSCodeService {
     if (!extensionInfo.version) {
       throw new Error("Version is not set");
     }
-    return `/api/vscode/download?publisher=${encodeURIComponent(extensionInfo.publisher)}&extension=${encodeURIComponent(extensionInfo.extension)}&version=${encodeURIComponent(extensionInfo.version)}`;
+    return `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${extensionInfo.publisher}/vsextensions/${extensionInfo.extension}/${extensionInfo.version}/vspackage`;
   }
 }
 

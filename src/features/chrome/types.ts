@@ -24,6 +24,11 @@ export interface ChromeDownloadProgress {
   error?: string;
 }
 
+export interface ChromeSearchResult {
+  id: string;
+  name: string;
+}
+
 export interface ChromeWebStoreResponse {
   manifest: {
     name: string;

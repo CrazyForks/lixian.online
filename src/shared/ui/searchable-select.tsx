@@ -93,6 +93,8 @@ export function SearchableSelect({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索..."
+            autoComplete="off"
+            data-1p-ignore
             className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
