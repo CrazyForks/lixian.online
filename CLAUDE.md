@@ -14,7 +14,7 @@ No test suite configured.
 
 ## Stack
 
-Next.js 15 + React 19 + TypeScript, Tailwind CSS + Radix UI, Zustand for state, Axios for HTTP.
+Next.js 16 + React 19 + TypeScript, Tailwind CSS v4 + Radix UI, Axios for HTTP. State managed via React Hooks (useState/useCallback/useRef), no global store.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ Next.js 15 + React 19 + TypeScript, Tailwind CSS + Radix UI, Zustand for state, 
 3. On download: auth token (`/api/docker/auth`) → manifest (`/api/docker/manifest`) → layers (`/api/docker/layer` per layer)
 4. `TarBuilder` (`src/features/docker/utils/tarBuilder.ts`) assembles layers into a `docker load`-compatible TAR and serves it as a blob URL download
 
-**VSCode flow:** Parse marketplace URL → call VSCode marketplace API directly from the browser → build a direct download URL pointing to `/_apis/public/gallery/publishers/.../vspackage`
+**VSCode flow:** Parse marketplace URL → query versions via `/api/vscode/query` proxy → build a direct download URL pointing to `/_apis/public/gallery/publishers/.../vspackage` (final download is direct, not proxied)
 
 **Chrome flow:** Extract extension ID from Chrome Web Store URL → proxy request through `/api/chrome/download` → parse CRX3/CRX2 binary format to extract the ZIP payload
 

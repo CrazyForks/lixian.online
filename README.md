@@ -1,55 +1,80 @@
-# Down2.online
+# 离线 · Online
 
-## LLM 提示词
+在线搞定离线包 —— 帮助开发者在受限网络环境下获取 VSCode 插件、Chrome 扩展和 Docker 镜像的离线安装包。
 
-实现一个 Web 端的离线下载工具助手。目前的核心功能是：vscode 插件离线下载、Docker 镜像离线下载。请基于以下想法初始化项目，并实现具有可维护性的代码。
+**在线体验：** [lixian.online](https://lixian.online)
 
-vscode 插件离线下载：
+## 功能
 
-- 下载流程：
+| 功能 | 输入 | 输出 |
+|------|------|------|
+| VSCode 插件 | Marketplace 页面 URL | `.vsix` 离线安装包直链 |
+| Chrome 扩展 | 扩展名称 / 32 位 ID | `.crx` + `.zip` 文件 |
+| Docker 镜像 | 镜像名称（如 `nginx:latest`） | `docker load` 兼容的 `.tar` 文件 |
 
-  1. 用户输入要下载的 vscode 网址，网页解析真实的下载地址，跳转新页面下载 vscode 插件
-  2. 网页解析流程：
+所有文件下载均在浏览器端完成，服务端仅作 API 代理（绕 CORS）。
 
-     - 比如用户输入插件地址：
+## 技术栈
 
-       https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev
-     - 通过接口获取到版本号 11.0：
-     - 拼接得到下载链接：https://marketplace.visualstudio.com/_apis/public/gallery/publishers/saoudrizwan/vsextensions/claude-dev/11.0.0/vspackage
-- 其他产品：
+Next.js 16 + React 19 + TypeScript, Tailwind CSS v4 + Radix UI, Axios
 
-  - 脚本：https://github.com/gni/offvsix/blob/main/offvsix/main.py
-  - Issues: https://github.com/microsoft/vsmarketplace/issues/238#issuecomment-1378486673
+## 快速开始
 
-Docker 镜像离线下载：
+```bash
+# 安装依赖
+npm install
 
-- 相似产品：
-  - Chrome 插件：https://chromewebstore.google.com/detail/docker-image-downloader/dfpojffmnkiglpjpjodlpmoejdcfobnd?pli=1
+# 开发
+npm run dev
 
-    - [下载器原理](https://www.v2ex.com/t/1110052)：
+# 构建
+npm run build
 
-      * 根据 Docker Registry HTTP API 来模拟 docker pull 的行为
-      * 将下载下来的 layers 根据 docker load 支持的格式组装起来，配合 [tar-stream](https://github.com/mafintosh/tar-stream/blob/master/pack.js) 直接流式打包
-      * chrome extension v3 支持 service-worker ，service-worker 支持 Fetch Event 可以让用户在浏览器的下载器中直接下载上一步流式打包的 tar 文件
-  - 脚本1: https://github.com/meetyourturik/dockerless-docker-downloader
-  - 脚本2: https://github.com/NotGlop/docker-drag
-  - 其他参考：
+# 生产启动
+npm run start
 
-    - https://www.v2ex.com/t/1117273
+# Lint
+npm run lint
+```
 
-TODO
+## 项目结构
 
-* [ ] 官网跳转
-* [ ] ICON 显示
-* [ ] Step 分步骤下载
+```
+src/
+├── app/
+│   ├── api/                    # API 代理路由（Docker / VSCode / Chrome）
+│   ├── layout.tsx              # 根布局
+│   └── page.tsx                # 首页
+├── features/                   # 按功能拆分
+│   ├── docker/                 # Docker 镜像下载
+│   ├── vscode/                 # VSCode 插件下载
+│   └── chrome/                 # Chrome 扩展下载
+│       ├── api/                # Service 服务类
+│       ├── hooks/              # React Hook（状态 + 流程编排）
+│       ├── components/         # UI 组件
+│       └── types.ts            # 类型定义
+├── hooks/                      # 通用 Hook（useHistory, useToast）
+└── shared/                     # 共享工具和 UI 组件
+```
+
+## 文档
+
+详细的设计规格和接口文档见 [`docs/`](./docs/)：
+
+- [**spec.md**](./docs/spec.md) — 设计规格书（架构、数据流、二进制格式、类型定义）
+- [**api.md**](./docs/api.md) — 接口文档（所有 API 路由 + 上游 API 参考）
+- [**api.http**](./docs/api.http) — REST Client 测试文件
 
 ## 版本发布
 
-- 页面页脚版本号读取自 `package.json` 的 `version`
-- 悬浮显示构建时间和 commit 短 hash（由构建阶段注入）
+页脚版本号读取自 `package.json`，hover 显示构建时间和 commit hash。
 
-常用打版本命令：
+```bash
+npm run version:patch   # 0.2.0 → 0.2.1
+npm run version:minor   # 0.2.0 → 0.3.0
+npm run version:major   # 0.2.0 → 1.0.0
+```
 
-- `npm run version:patch`
-- `npm run version:minor`
-- `npm run version:major`
+## License
+
+MIT

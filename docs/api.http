@@ -1,0 +1,126 @@
+### ========================================
+### Lixian.Online API - REST Client 测试文件
+### ========================================
+
+@baseUrl = http://localhost:3000
+
+
+### ========================================
+### Docker 接口
+### ========================================
+
+### 1. 获取镜像标签列表
+GET {{baseUrl}}/api/docker/tags?namespace=library&repository=nginx
+
+### 2. 获取认证令牌
+GET {{baseUrl}}/api/docker/auth?namespace=library&repository=nginx
+
+### 3. 获取镜像清单（需先获取 token，分两步执行）
+# @name auth
+GET {{baseUrl}}/api/docker/auth?namespace=library&repository=nginx
+
+###
+@token = {{auth.response.body.token}}
+GET {{baseUrl}}/api/docker/manifest?namespace=library&repository=nginx&tag=latest&token={{token}}
+
+### 4. 下载镜像层（需 token 和 digest）
+# 将 digest 替换为 manifest 返回的实际 layers[].digest 值
+GET {{baseUrl}}/api/docker/layer?namespace=library&repository=nginx&digest=sha256:替换为实际digest&token={{token}}
+
+### 5. 搜索 Docker 镜像
+GET {{baseUrl}}/api/docker/search?q=nginx&page_size=5
+
+### 搜索 - 自定义数量
+GET {{baseUrl}}/api/docker/search?q=redis&page_size=10
+
+
+### ========================================
+### VSCode 接口
+### ========================================
+
+### 6. 查询 Python 插件版本列表
+POST {{baseUrl}}/api/vscode/query
+Content-Type: application/json
+
+{
+  "filters": [
+    {
+      "criteria": [
+        {
+          "filterType": 7,
+          "value": "ms-python.python"
+        }
+      ],
+      "pageNumber": 1,
+      "pageSize": 1,
+      "sortBy": 0,
+      "sortOrder": 0
+    }
+  ],
+  "flags": 1
+}
+
+### 查询 ESLint 插件版本列表
+POST {{baseUrl}}/api/vscode/query
+Content-Type: application/json
+
+{
+  "filters": [
+    {
+      "criteria": [
+        {
+          "filterType": 7,
+          "value": "dbaeumer.vscode-eslint"
+        }
+      ],
+      "pageNumber": 1,
+      "pageSize": 1,
+      "sortBy": 0,
+      "sortOrder": 0
+    }
+  ],
+  "flags": 1
+}
+
+### 7. 直接下载 VSCode 插件（非代理，浏览器直接访问）
+# GET https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/vsextensions/python/2025.1.0/vspackage
+
+
+### ========================================
+### Chrome 接口
+### ========================================
+
+### 8. 下载 uBlock Origin (CRX)
+GET {{baseUrl}}/api/chrome/download?id=cjpalhdlnbpafiamejdnhcphjbkeiagm
+
+### 下载 React DevTools (CRX)
+GET {{baseUrl}}/api/chrome/download?id=fmkadmapgofadopljbjfkapdkoienihi
+
+### 9. 搜索 Chrome 扩展
+GET {{baseUrl}}/api/chrome/search?q=ublock
+
+### 搜索 - 中文关键词
+GET {{baseUrl}}/api/chrome/search?q=翻译
+
+
+### ========================================
+### 错误用例测试
+### ========================================
+
+### Docker tags - 缺少 repository → 400
+GET {{baseUrl}}/api/docker/tags?namespace=library
+
+### Docker manifest - 缺少 token → 401
+GET {{baseUrl}}/api/docker/manifest?namespace=library&repository=nginx&tag=latest
+
+### Chrome download - 无效 ID 格式 → 400
+GET {{baseUrl}}/api/chrome/download?id=invalid
+
+### Chrome download - 缺少 ID → 400
+GET {{baseUrl}}/api/chrome/download
+
+### Chrome search - 缺少关键词 → 400
+GET {{baseUrl}}/api/chrome/search
+
+### Docker search - 缺少关键词 → 400
+GET {{baseUrl}}/api/docker/search
