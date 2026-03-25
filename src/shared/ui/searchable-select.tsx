@@ -18,12 +18,15 @@ export function SearchableSelect({
   placeholder = "选择...",
   onValueChange,
 }: SearchableSelectProps) {
+  const [mounted, setMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [pos, setPos] = React.useState({ top: 0, left: 0, width: 0 });
+
+  React.useEffect(() => setMounted(true), []);
 
   const MAX_VISIBLE = 50;
 
@@ -150,7 +153,7 @@ export function SearchableSelect({
           )}
         />
       </button>
-      {typeof window !== "undefined" && createPortal(dropdown, document.body)}
+      {mounted && dropdown && createPortal(dropdown, document.body)}
     </>
   );
 }

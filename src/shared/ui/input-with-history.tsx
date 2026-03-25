@@ -18,10 +18,13 @@ export function InputWithHistory({
   value,
   ...inputProps
 }: InputWithHistoryProps) {
+  const [mounted, setMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0, width: 0 });
   const inputWrapperRef = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => setMounted(true), []);
 
   const inputValue = typeof value === "string" ? value : "";
   const filtered = React.useMemo(() => {
@@ -70,7 +73,7 @@ export function InputWithHistory({
   };
 
   const dropdown =
-    showDropdown && typeof window !== "undefined"
+    mounted && showDropdown
       ? createPortal(
           <div
             ref={dropdownRef}
