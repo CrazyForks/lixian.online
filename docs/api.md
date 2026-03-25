@@ -24,7 +24,7 @@
 | 场景 | 值 |
 |------|-----|
 | 通用（tags/auth/manifest/search） | `Mozilla/5.0 (compatible; lixian.online/1.0)` |
-| Chrome 扩展下载 | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36` |
+| Chrome 扩展下载 | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36` |
 
 ---
 
@@ -423,7 +423,7 @@ const params = new URLSearchParams({
   nacl_arch: "x86-64",
   prod: "chromecrx",
   prodchannel: "beta",
-  prodversion: "91.0.4472.101",
+  prodversion: "131.0.6778.86",
   lang: "zh-CN",
   acceptformat: "crx2,crx3",
   x: `id=${extensionId}&installsource=ondemand&uc`
@@ -434,7 +434,7 @@ const url = `https://clients2.google.com/service/update2/crx?${params.toString()
 #### 上游请求头
 
 ```
-User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
 ```
 
 > 注意：此处使用完整的 Chrome 浏览器 UA，而非站点通用 UA。Chrome 更新服务会校验 UA。
@@ -450,6 +450,7 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 | 状态码 | 场景 |
 |--------|------|
 | 400 | ID 缺失或格式无效 |
+| 404 | 扩展文件为空（已下架或不可用） |
 | 上游状态码 | 透传上游错误 |
 | 500 | 服务器内部错误 |
 
@@ -459,7 +460,59 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 ---
 
-### 4.2 GET /api/chrome/search
+### 4.2 GET /api/chrome/detail
+
+获取 Chrome 扩展的名称和描述信息。通过抓取 Chrome Web Store 详情页 HTML 提取。
+
+**上游：** `https://chromewebstore.google.com/detail/{extensionId}`
+
+#### 请求参数（Query String）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | string | **是** | 32 位小写字母扩展 ID |
+
+#### 上游请求头
+
+```
+User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+```
+
+#### HTML 解析逻辑
+
+从服务端渲染的 HTML 中提取：
+
+- **名称**：`<title>Extension Name - Chrome 应用商店</title>` → 正则 `/<title>(.+?)\s*[-–—]\s*Chrome[^<]*<\/title>/`
+- **描述**：`<meta name="description" content="...">` → 正则 `/meta\s+name="description"\s+content="([^"]*)"/`
+
+#### 成功响应
+
+```json
+{
+  "id": "epcnnfbjfcgphgdmggkamkmgojdagdnn",
+  "name": "uBlock",
+  "description": "一款切实有效的广告拦截程序"
+}
+```
+
+> `name` 和 `description` 可能为 `undefined`（页面结构变化时）。
+
+#### 错误响应
+
+| 状态码 | 场景 |
+|--------|------|
+| 400 | ID 缺失或格式无效 |
+| 上游状态码 | Chrome Web Store 错误 |
+| 500 | 获取失败 |
+
+#### 缓存
+
+无
+
+---
+
+### 4.3 GET /api/chrome/search
 
 搜索 Chrome Web Store 扩展。通过抓取搜索结果页 HTML 提取扩展列表。
 
@@ -566,6 +619,7 @@ slug.split('-')
 | 端点 | 用途 |
 |------|------|
 | `https://clients2.google.com/service/update2/crx?{params}` | CRX 下载 |
+| `https://chromewebstore.google.com/detail/{extensionId}` | 扩展详情页 HTML |
 | `https://chromewebstore.google.com/search/{query}` | 搜索页面 HTML |
 
 ---
@@ -583,6 +637,7 @@ slug.split('-')
 | `GET /api/docker/search` | `?q=&page_size=` | `data.results[] → { repo_name, short_description, star_count, pull_count }` |
 | `POST /api/vscode/query` | JSON body | `data.results[0].extensions[0].versions[].version → string[]` |
 | `GET /api/chrome/download` | `?id=` | `response.blob() → Blob` |
+| `GET /api/chrome/detail` | `?id=` | `data → { id, name?, description? }` |
 | `GET /api/chrome/search` | `?q=` | `data.results[] → ChromeSearchResult[]` |
 
 ---
@@ -684,13 +739,19 @@ Content-Type: application/json
 ### Chrome 接口
 ### ========================================
 
-### 8. 下载 Chrome 扩展 (CRX)
+### 8. 获取扩展详情（名称、描述）
+GET {{baseUrl}}/api/chrome/detail?id=cjpalhdlnbpafiamejdnhcphjbkeiagm
+
+### 获取 uBlock 扩展详情
+GET {{baseUrl}}/api/chrome/detail?id=epcnnfbjfcgphgdmggkamkmgojdagdnn
+
+### 9. 下载 Chrome 扩展 (CRX)
 GET {{baseUrl}}/api/chrome/download?id=cjpalhdlnbpafiamejdnhcphjbkeiagm
 
 ### 下载 React DevTools
 GET {{baseUrl}}/api/chrome/download?id=fmkadmapgofadopljbjfkapdkoienihi
 
-### 9. 搜索 Chrome 扩展
+### 10. 搜索 Chrome 扩展
 GET {{baseUrl}}/api/chrome/search?q=ublock
 
 ### 搜索 - 中文关键词

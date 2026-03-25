@@ -1,6 +1,6 @@
 # Lixian.Online 项目设计规格书
 
-> 本文档是项目的完整实现规格。一个工程师仅凭此文档（不看源代码），应能从零实现出功能等价的系统。
+> 本文档是项目的完整实现规格。一个工程师/LLM仅凭此文档（不看源代码），应能从零实现出功能等价的系统。
 
 ---
 
@@ -8,7 +8,7 @@
 
 **名称：** Lixian.Online（lixian.online）
 
-**定位：** 在线离线包下载工具，帮助用户在受限网络环境下获取开发资源的离线安装包。
+**定位：** 在线离线包下载工具，帮助开发者获取开发资源的离线安装包，并在受限网络环境下安装。
 
 **核心功能：**
 
@@ -22,20 +22,20 @@
 
 ## 2. 技术选型
 
-| 层级 | 技术 | 版本 | 选型理由 |
-|------|------|------|----------|
-| 框架 | Next.js (App Router) | 16.x | SSR + API Routes 统一部署，API 代理绕过 CORS |
-| UI 库 | React | 19.x | 生态成熟 |
-| 类型系统 | TypeScript | 5.x | 类型安全 |
-| 样式 | Tailwind CSS | v4 | 原子化 CSS，零运行时 |
-| UI 原语 | Radix UI | — | 无样式、可访问的底层组件 |
-| 组件变体 | class-variance-authority (CVA) | 0.7.x | 声明式组件变体管理 |
-| 类名工具 | clsx + tailwind-merge | — | 合并/去重 Tailwind 类名 |
-| 图标 | lucide-react | 0.577.x | 体积小、树摇友好 |
-| HTTP 客户端 | Axios | 1.x | 浏览器端 HTTP 请求封装 |
-| 状态管理 | React Hooks (useState/useCallback/useRef) | — | 轻量，无需全局 store |
-| 分析 | @vercel/analytics | 2.x | 零配置部署分析 |
-| 字体 | Inter (Google Fonts) | — | 可变字体，拉丁子集 |
+| 层级 | 技术 | 版本 |
+|------|------|------|
+| 框架 | Next.js (App Router) | 16.x |
+| UI 库 | React | 19.x |
+| 类型系统 | TypeScript | 5.x |
+| 样式 | Tailwind CSS | v4 |
+| UI 原语 | Radix UI | — |
+| 组件变体 | class-variance-authority (CVA) | 0.7.x |
+| 类名工具 | clsx + tailwind-merge | — |
+| 图标 | lucide-react | 0.577.x |
+| HTTP 客户端 | Axios | 1.x |
+| 状态管理 | React Hooks (useState/useCallback/useRef) | — |
+| 分析 | @vercel/analytics | 2.x |
+| 字体 | Inter (Google Fonts) | — |
 
 **运行时要求：** Node.js 22+
 
@@ -61,6 +61,7 @@ lixian.online/
 │   │       │   └── query/route.ts        # VSCode Marketplace 查询
 │   │       └── chrome/
 │   │           ├── download/route.ts     # CRX 文件下载
+│   │           ├── detail/route.ts       # 扩展详情（名称、描述）
 │   │           └── search/route.ts       # Chrome Web Store 搜索
 │   ├── features/                         # 按功能拆分的模块
 │   │   ├── docker/
@@ -307,11 +308,6 @@ POST /api/vscode/query
 ```
 用户输入扩展名称 / 32 位 ID / Web Store URL
         │
-        ├── 实时解析 ID（onChange）:
-        │   extractExtensionId(input)
-        │     - URL: 正则 /([a-z]{32})/ 提取
-        │     - 直接 ID: /^[a-z]{32}$/ 校验
-        │
         ├── 防抖搜索（400ms）:
         │   GET /api/chrome/search?q={keyword}
         │     → 上游: https://chromewebstore.google.com/search/{keyword}
@@ -322,17 +318,26 @@ POST /api/vscode/query
         │
         ▼
 用户点击"解析" → handleSubmit()
-  校验 ID 格式: /^[a-z]{32}$/
-  → 设置 extensionInfo (name/version 为占位符)
+  extractExtensionId(input)
+    - URL: 正则 /([a-z]{32})/ 提取
+    - 直接 ID: /^[a-z]{32}$/ 校验
+  → GET /api/chrome/detail?id={extensionId}
+    → 上游: https://chromewebstore.google.com/detail/{extensionId}
+    → 从 HTML 提取 <title> 和 <meta description>
+    → 返回真实名称和描述
+  → 设置 extensionInfo（合并搜索结果中已有的名称）
         │
         ▼
 用户点击下载 → handleDownload(format: 'crx' | 'zip' | 'both')
+  支持 AbortController 取消下载
         │
         ▼
 GET /api/chrome/download?id={extensionId}
   → 上游: https://clients2.google.com/service/update2/crx?...
-  → 服务端使用 Chrome User-Agent 伪装
+  → 服务端使用 Chrome 131 User-Agent 伪装
+  → 空响应校验（返回 404 而非 0 KB 文件）
   → 返回: CRX 二进制文件
+  → 客户端使用 ReadableStream 流式读取，实时显示下载进度
         │
         ├── format = 'crx':
         │   URL.createObjectURL(crxBlob)
@@ -706,6 +711,14 @@ interface ChromeSearchResult {
 | `searchResults` | `ChromeSearchResult[]` |
 | `searching` | `boolean` |
 
+| 回调 | 作用 |
+|------|------|
+| `onUrlChange(e)` | 更新输入，清除 extensionInfo 和下载状态 |
+| `selectSearchResult(result)` | 选择搜索结果，设置 ID 和名称 |
+| `handleSubmit(e)` | 解析 ID，调用 `/api/chrome/detail` 获取真实名称和描述 |
+| `handleDownload(format)` | 流式下载 CRX，支持实时进度（ReadableStream） |
+| `cancelDownload()` | 通过 AbortController 取消进行中的下载 |
+
 搜索防抖：`onSearchInputChange` 内使用 `setTimeout` 400ms 防抖，ref 跟踪 timer，组件卸载时清除。
 
 ### 通用 Hook
@@ -746,6 +759,7 @@ interface ChromeSearchResult {
 | `/api/docker/manifest` | `public, max-age=3600` | 1 小时 | 清单相对稳定 |
 | `/api/docker/search` | `public, max-age=300` | 5 分钟 | 搜索结果时效性 |
 | `/api/chrome/download` | `public, max-age=3600` | 1 小时 | 扩展版本不频繁更新 |
+| `/api/chrome/detail` | 无缓存 | — | 详情信息实时性 |
 | `/api/vscode/query` | 无缓存 | — | 每次查询可能不同 |
 | `/api/chrome/search` | 无缓存 | — | 搜索结果实时性 |
 | `/api/docker/layer` | 无缓存 | — | 大文件流式传输 |
@@ -766,7 +780,7 @@ interface ChromeSearchResult {
 ### 请求伪装
 
 - 通用 User-Agent：`"Mozilla/5.0 (compatible; lixian.online/1.0)"`
-- Chrome 下载专用 User-Agent：完整 Chrome 91 浏览器 UA 字符串
+- Chrome 下载专用 User-Agent：完整 Chrome 131 浏览器 UA 字符串
 - Chrome 搜索附加：`Accept-Language: zh-CN,zh;q=0.9,en;q=0.8`
 
 ### 其他
@@ -820,7 +834,7 @@ const VSCodeDownloader = dynamic(
 
 - HTML `lang="zh"`
 - Inter 字体（Google Fonts，拉丁子集，CSS 变量 `--font-inter`）
-- Viewport：`width=device-width, initial-scale=1`，主题色 `#007AFF`
+- Viewport：`width=device-width, initial-scale=1`，主题色 `#F03050`
 - 全局 `<Toaster />` 组件
 - `<Analytics />` (Vercel)
 
@@ -878,7 +892,7 @@ Apple 风格设计语言，使用 CSS 变量定义 HSL 色值，支持明/暗模
 
 ```typescript
 const site = {
-  name: "Lixian.Online",
+  name: "lixian.online",
   domain: "lixian.online",
   url: "https://lixian.online",
   description: "在线搞定离线包",
@@ -891,17 +905,50 @@ const site = {
 
 ---
 
-## 14. HTTP 客户端封装
+## 14. 验收标准
 
-```typescript
-// 默认请求头
-const headers = { "Content-Type": "application/json", "Accept": "application/json" };
+### 功能验收
 
-export const get = (url, params) => axios.get(url, { headers, params });
-export const post = (url, payload?, extraHeaders?) =>
-  axios.post(url, payload, { headers: { ...headers, ...extraHeaders } });
-export const put = (url, data) => axios.put(url, data, { headers });
-export const del = (url) => axios.delete(url, { headers });
-```
+#### Docker 镜像下载
 
-注意：Docker 层下载使用原生 `fetch()` 而非 Axios，因为需要直接操作 `Blob`。
+- [ ] 输入 `nginx:latest`、`library/nginx`、`docker.io/library/nginx:alpine` 等多种格式均能正确解析
+- [ ] 标签列表正确加载，用户可切换选择
+- [ ] 镜像不存在时展示搜索候选列表，点击候选可自动填充
+- [ ] 多架构 manifest 自动选择 `amd64/linux` 平台
+- [ ] 下载过程显示实时进度（当前层/总层数、已下载/总大小）
+- [ ] 生成的 `.tar` 文件能通过 `docker load` 成功导入，导入后 `docker run` 能正常启动容器
+- [ ] `diff_ids` 与解压后 layer 数据的 SHA-256 哈希一致，`docker load` 校验通过
+
+#### VSCode 插件下载
+
+- [ ] 粘贴 Marketplace URL 能解析出 publisher 和 extension 名称（含 publisher 带点号的情况）
+- [ ] 版本列表正确加载，切换版本自动更新下载链接
+- [ ] 下载的 `.vsix` 文件能在 VS Code 中通过 "Install from VSIX" 安装
+
+#### Chrome 扩展下载
+
+- [ ] 支持三种输入方式：扩展名称搜索、32 位 ID 直接输入、Web Store URL 粘贴
+- [ ] 搜索防抖正常，结果去重且最多 10 条
+- [ ] 解析后显示扩展真实名称和描述
+- [ ] CRX 文件正常下载，下载过程显示实时进度，支持取消
+- [ ] CRX → ZIP 转换正确（CRX3 和 CRX2 格式均支持）
+- [ ] 转换后的 ZIP 能在 Chrome 开发者模式加载
+- [ ] `both` 模式下 ZIP 转换失败时降级为仅提供 CRX
+
+### 通用验收
+
+- [ ] 三个功能的历史记录正确保存（localStorage）、展示、去重，上限 10 条
+- [ ] Toast 通知在成功和错误场景正确触发，5 秒后自动消失
+- [ ] Portal 下拉菜单定位准确，跟随滚动和窗口缩放更新，点击外部关闭
+- [ ] Blob URL 在组件卸载和重新下载时正确释放，无内存泄漏
+- [ ] 首屏仅加载当前 Tab 对应的组件代码（dynamic import）
+- [ ] Docker 层下载使用流式传输，服务端不缓冲完整文件
+
+### 规划中
+
+- [ ] Docker 下载支持用户选择目标平台（arm64 / amd64）
+- [ ] Docker 多层并行下载
+- [ ] 下载断点续传
+- [ ] 错误处理规范化：所有 API 路由统一错误响应格式，前端统一错误展示
+- [ ] 共享 UI 组件（InputWithHistory、SearchableSelect）的键盘导航支持
+- [ ] 移动端响应式布局优化

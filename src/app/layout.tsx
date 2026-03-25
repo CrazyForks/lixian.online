@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: `${site.description}-${site.name}`,
+  title: `${site.description} - ${site.name}`,
   description: `在线获取 VSCode 插件、Chrome 扩展、Docker 镜像的离线安装包`,
   keywords: [...site.keywords],
   authors: [{ name: site.author }],

@@ -2,7 +2,9 @@
 
 Offline packages, online — helps developers grab offline installers for VSCode extensions, Chrome extensions, and Docker images, and install them in restricted network environments.
 
-**Live demo:** [lixian.online](https://lixian.online) | [中文文档](./README.md)
+**Live demo:** [lixian.online](https://lixian.online)
+
+**说明文档：** [English](./README.en.md) | [中文文档](./README.md)
 
 ## Features
 

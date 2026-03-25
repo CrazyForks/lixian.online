@@ -90,13 +90,19 @@ Content-Type: application/json
 ### Chrome 接口
 ### ========================================
 
-### 8. 下载 uBlock Origin (CRX)
+### 8. 获取扩展详情（名称、描述）
+GET {{baseUrl}}/api/chrome/detail?id=cjpalhdlnbpafiamejdnhcphjbkeiagm
+
+### 获取 uBlock 扩展详情
+GET {{baseUrl}}/api/chrome/detail?id=epcnnfbjfcgphgdmggkamkmgojdagdnn
+
+### 9. 下载 uBlock Origin (CRX)
 GET {{baseUrl}}/api/chrome/download?id=cjpalhdlnbpafiamejdnhcphjbkeiagm
 
 ### 下载 React DevTools (CRX)
 GET {{baseUrl}}/api/chrome/download?id=fmkadmapgofadopljbjfkapdkoienihi
 
-### 9. 搜索 Chrome 扩展
+### 10. 搜索 Chrome 扩展
 GET {{baseUrl}}/api/chrome/search?q=ublock
 
 ### 搜索 - 中文关键词
