@@ -1,18 +1,17 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 const MAX_ITEMS = 10;
 
 export function useHistory(storageKey: string) {
-  const [items, setItems] = useState<string[]>([]);
-
-  useEffect(() => {
+  const [items, setItems] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) setItems(JSON.parse(raw));
+      return raw ? JSON.parse(raw) : [];
     } catch {
-      // ignore
+      return [];
     }
-  }, [storageKey]);
+  });
 
   const add = useCallback(
     (value: string) => {

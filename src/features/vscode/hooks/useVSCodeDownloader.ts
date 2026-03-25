@@ -25,11 +25,9 @@ export function useVSCodeDownloader() {
 
   const onVersionChange = useCallback(
     (value: string) => {
-      if (extensionInfo) {
-        setExtensionInfo({ ...extensionInfo, version: value });
-      }
+      setExtensionInfo((prev) => (prev ? { ...prev, version: value } : null));
     },
-    [extensionInfo]
+    []
   );
 
   useEffect(() => {

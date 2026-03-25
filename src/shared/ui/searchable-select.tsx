@@ -51,10 +51,11 @@ export function SearchableSelect({
   React.useEffect(() => {
     if (!open) return;
     updatePosition();
-    window.addEventListener("scroll", updatePosition, true);
+    const scrollOpts: AddEventListenerOptions = { capture: true, passive: true };
+    window.addEventListener("scroll", updatePosition, scrollOpts);
     window.addEventListener("resize", updatePosition);
     return () => {
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("scroll", updatePosition, scrollOpts);
       window.removeEventListener("resize", updatePosition);
     };
   }, [open, updatePosition]);

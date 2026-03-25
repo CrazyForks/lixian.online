@@ -11,6 +11,10 @@ export function useChromeDownloader() {
   const [searchResults, setSearchResults] = useState<ChromeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // Keep a ref to extensionInfo so download callback is stable
+  const extensionInfoRef = useRef(extensionInfo);
+  extensionInfoRef.current = extensionInfo;
+
   // Track active blob URLs so they can be revoked on re-download or unmount
   const blobUrlsRef = useRef<string[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -18,6 +22,7 @@ export function useChromeDownloader() {
   useEffect(() => {
     return () => {
       blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, []);
 
@@ -127,7 +132,8 @@ export function useChromeDownloader() {
   );
 
   const handleDownload = useCallback(async (format: 'crx' | 'zip' | 'both' = 'both') => {
-    if (!extensionInfo?.id) {
+    const info = extensionInfoRef.current;
+    if (!info?.id) {
       throw new Error("请先解析扩展信息");
     }
 
@@ -140,7 +146,7 @@ export function useChromeDownloader() {
     });
 
     try {
-      const downloadInfo = chromeService.getDownloadInfo(extensionInfo.id);
+      const downloadInfo = chromeService.getDownloadInfo(info.id);
       
       // 下载 CRX 文件
       setDownloadProgress(prev => prev ? { ...prev, status: 'downloading' } : null);
@@ -197,7 +203,7 @@ export function useChromeDownloader() {
     } finally {
       setLoading(false);
     }
-  }, [extensionInfo]);
+  }, []);
 
   return {
     extensionUrl,

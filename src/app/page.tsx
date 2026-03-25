@@ -1,12 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Card, CardContent } from "@/shared/ui/card";
-import VSCodeDownloader from "@/features/vscode/components/VSCodeDownloader";
-import DockerDownloader from "@/features/docker/components/DockerDownloader";
-import ChromeDownloader from "@/features/chrome/components/ChromeDownloader";
 import { Blocks, Globe, Container, ExternalLink } from "lucide-react";
+import { LoadingSpinner } from "@/shared/ui/loading-spinner";
+
+const DynamicFallback = () => (
+  <div className="flex items-center justify-center py-12">
+    <LoadingSpinner />
+  </div>
+);
+
+const VSCodeDownloader = dynamic(
+  () => import("@/features/vscode/components/VSCodeDownloader"),
+  { ssr: false, loading: DynamicFallback }
+);
+const ChromeDownloader = dynamic(
+  () => import("@/features/chrome/components/ChromeDownloader"),
+  { ssr: false, loading: DynamicFallback }
+);
+const DockerDownloader = dynamic(
+  () => import("@/features/docker/components/DockerDownloader"),
+  { ssr: false, loading: DynamicFallback }
+);
 import { site } from "@/shared/lib/site";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.1.0";
