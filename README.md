@@ -64,18 +64,7 @@ src/
 详细的设计规格和接口文档见 [`docs/`](./docs/)：
 
 - [**spec.md**](./docs/spec.md) — 设计规格书（架构、数据流、二进制格式、类型定义）
-- [**api.md**](./docs/api.md) — 接口文档（所有 API 路由 + 上游 API 参考）
 - [**api.http**](./docs/api.http) — REST Client 测试文件
-
-## 版本发布
-
-页脚版本号读取自 `package.json`，hover 显示构建时间和 commit hash。
-
-```bash
-npm run version:patch   # 0.2.0 → 0.2.1
-npm run version:minor   # 0.2.0 → 0.3.0
-npm run version:major   # 0.2.0 → 1.0.0
-```
 
 ## License
 
