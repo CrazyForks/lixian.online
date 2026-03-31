@@ -1,954 +1,684 @@
-# Lixian.Online 项目设计规格书
+# Lixian.Online 实现规格
 
-> 本文档是项目的完整实现规格。一个工程师/LLM仅凭此文档（不看源代码），应能从零实现出功能等价的系统。
+> 本文档是项目的唯一权威规格。开发者/LLM只依赖本文档，应能构建出功能等价的系统，而不需要查看原始源码。
 
----
+## 1. 文档约定
 
-## 1. 项目概述
+- 本文档只保留可验证、可实现、可测试的要求；目录结构、框架偏好、样式细节、部署供应商不属于规范的一部分。
+- 关键字 `MUST`、`MUST NOT`、`SHOULD`、`SHOULD NOT`、`MAY` 按 RFC 2119 / RFC 8174 解释。
+- API 章节按 OpenAPI 常见结构组织：路径、方法、用途、参数、请求体、响应、错误、备注。
+- 除“示例”外，所有行为描述均为规范性要求。
 
-**名称：** Lixian.Online（lixian.online）
+## 2. 产品定义
 
-**定位：** 在线离线包下载工具，帮助开发者获取开发资源的离线安装包，并在受限网络环境下安装。
+Lixian.Online 是一个单页 Web 应用，帮助用户在受限网络环境下获取三类公开开发资源的离线安装包：
 
-**核心功能：**
+| 能力 | 用户输入 | 用户输出 |
+| --- | --- | --- |
+| VSCode 插件下载 | Marketplace 插件页 URL | `.vsix` 直接下载链接 |
+| Chrome 扩展下载 | 扩展名称、扩展 ID、商店 URL | `.crx`、`.zip` 下载链接 |
+| Docker 镜像下载 | 镜像名或 Docker Hub URL | 可被 `docker load` 导入的 `.tar` 文件 |
 
-| 功能 | 输入 | 输出 |
-|------|------|------|
-| VSCode 插件下载 | Marketplace 页面 URL | `.vsix` 离线安装包直链 |
-| Chrome 扩展下载 | 扩展名称 / 32 位 ID | `.crx` 和 `.zip` 文件（浏览器端生成 Blob URL） |
-| Docker 镜像下载 | 镜像名称（如 `nginx:latest`） | `docker load` 兼容的 `.tar` 文件（浏览器端生成 Blob URL） |
+系统 MUST 同时包含以下两部分：
 
----
+- 浏览器端应用：负责交互、状态管理、二进制处理、Blob URL 生成。
+- 服务端代理 API：负责访问上游站点、规避 CORS、携带合适的请求头、流式转发大文件。
 
-## 2. 技术选型
+## 3. 范围与非目标
 
-| 层级 | 技术 | 版本 |
-|------|------|------|
-| 框架 | Next.js (App Router) | 16.x |
-| UI 库 | React | 19.x |
-| 类型系统 | TypeScript | 5.x |
-| 样式 | Tailwind CSS | v4 |
-| UI 原语 | Radix UI | — |
-| 组件变体 | class-variance-authority (CVA) | 0.7.x |
-| 类名工具 | clsx + tailwind-merge | — |
-| 图标 | lucide-react | 0.577.x |
-| HTTP 客户端 | Axios | 1.x |
-| 状态管理 | React Hooks (useState/useCallback/useRef) | — |
-| 分析 | @vercel/analytics | 2.x |
-| 字体 | Inter (Google Fonts) | — |
+### 3.1 范围内
 
-**运行时要求：** Node.js 22+
+- 仅处理公开、匿名可访问的资源。
+- 仅提供下载能力，不处理安装、依赖解析、更新检查。
+- Docker 镜像下载在浏览器端完成层解压、SHA-256 计算、`docker load` tar 打包。
+- Chrome 扩展下载在浏览器端完成 CRX 到 ZIP 的转换。
+- 页面为单页应用，默认首页即主界面。
+- 页面内切换功能标签时，当前标签状态 SHOULD 保留，不因切换而重置。
 
----
+### 3.2 明确不做
 
-## 3. 目录结构
+- 不支持登录、用户体系、私有仓库或任何凭证输入。
+- 不支持服务端持久化、缓存文件落盘、断点续传。
+- 不支持 Docker 平台手动选择；多架构镜像固定选择 `linux/amd64`。
+- 不保证移动端适配。
+- 不保证对上游页面结构变更具有鲁棒性，尤其是 Chrome Web Store HTML 抓取。
 
-```
-lixian.online/
-├── src/
-│   ├── app/                              # Next.js App Router
-│   │   ├── layout.tsx                    # 根布局（字体、元数据、Toaster、Analytics）
-│   │   ├── page.tsx                      # 首页（Tab 切换三个下载器）
-│   │   ├── globals.css                   # Tailwind v4 主题、全局样式
-│   │   └── api/                          # API 代理路由
-│   │       ├── docker/
-│   │       │   ├── auth/route.ts         # Docker Registry 认证令牌
-│   │       │   ├── tags/route.ts         # 镜像标签列表
-│   │       │   ├── manifest/route.ts     # 镜像清单（含多架构自动选择）
-│   │       │   ├── layer/route.ts        # 层数据流式下载
-│   │       │   └── search/route.ts       # Docker Hub 搜索
-│   │       ├── vscode/
-│   │       │   └── query/route.ts        # VSCode Marketplace 查询
-│   │       └── chrome/
-│   │           ├── download/route.ts     # CRX 文件下载
-│   │           ├── detail/route.ts       # 扩展详情（名称、描述）
-│   │           └── search/route.ts       # Chrome Web Store 搜索
-│   ├── features/                         # 按功能拆分的模块
-│   │   ├── docker/
-│   │   │   ├── api/DockerService.ts      # 服务类：解析、下载、TAR 生成
-│   │   │   ├── hooks/useDockerDownloader.ts
-│   │   │   ├── components/DockerDownloader.tsx
-│   │   │   ├── types.ts
-│   │   │   └── utils/tarBuilder.ts       # 浏览器端 TAR 构建器
-│   │   ├── vscode/
-│   │   │   ├── api/VSCodeService.ts
-│   │   │   ├── hooks/useVSCodeDownloader.ts
-│   │   │   ├── components/VSCodeDownloader.tsx
-│   │   │   └── types.ts
-│   │   └── chrome/
-│   │       ├── api/ChromeService.ts      # 含 CRX→ZIP 二进制转换
-│   │       ├── hooks/useChromeDownloader.ts
-│   │       ├── components/ChromeDownloader.tsx
-│   │       └── types.ts
-│   ├── hooks/
-│   │   ├── useHistory.ts                 # localStorage 历史记录
-│   │   └── useToast.ts                   # Toast 通知（基于 Radix）
-│   └── shared/
-│       ├── lib/
-│       │   ├── http.ts                   # Axios 封装（get/post/put/del）
-│       │   ├── site.ts                   # 站点元数据常量
-│       │   └── util.ts                   # cn() 类名合并函数
-│       └── ui/                           # Radix + CVA 封装的 UI 组件
-│           ├── button.tsx
-│           ├── card.tsx
-│           ├── input.tsx
-│           ├── input-with-history.tsx     # 带历史下拉的输入框（Portal）
-│           ├── loading-spinner.tsx
-│           ├── searchable-select.tsx      # 可搜索下拉选择（Portal）
-│           ├── select.tsx
-│           ├── tabs.tsx
-│           ├── toast.tsx
-│           └── toaster.tsx
-├── next.config.js                        # 构建时注入版本/时间/commit
-├── tsconfig.json                         # paths: @/* → ./src/*
-├── postcss.config.mjs                    # @tailwindcss/postcss
-├── components.json                       # shadcn/ui 配置
-└── package.json
-```
+## 4. 运行时与外部依赖
 
----
+### 4.1 浏览器能力
 
-## 4. 系统架构
+浏览器端实现 MUST 具备以下能力：
 
-### 4.1 整体架构
+- `fetch`
+- `ReadableStream`
+- `Blob`
+- `URL.createObjectURL`
+- `crypto.subtle.digest`
+- `DecompressionStream("gzip")`
+- `localStorage`
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                      浏览器                              │
-│                                                         │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │ VSCode      │  │ Chrome       │  │ Docker        │  │
-│  │ Downloader  │  │ Downloader   │  │ Downloader    │  │
-│  └──────┬──────┘  └──────┬───────┘  └───────┬───────┘  │
-│         │                │                   │          │
-│  ┌──────┴──────┐  ┌──────┴───────┐  ┌───────┴───────┐  │
-│  │ useVSCode   │  │ useChrome    │  │ useDocker     │  │
-│  │ Downloader  │  │ Downloader   │  │ Downloader    │  │
-│  └──────┬──────┘  └──────┬───────┘  └───────┬───────┘  │
-│         │                │                   │          │
-│  ┌──────┴──────┐  ┌──────┴───────┐  ┌───────┴───────┐  │
-│  │ VSCode      │  │ Chrome       │  │ Docker        │  │
-│  │ Service     │  │ Service      │  │ Service       │  │
-│  └──────┬──────┘  └──────┬───────┘  └───────┬───────┘  │
-│         │                │                   │          │
-│  ┌──────┴────────────────┴───────────────────┴───────┐  │
-│  │              Axios HTTP / fetch()                  │  │
-│  └──────────────────────┬────────────────────────────┘  │
-│                         │                               │
-└─────────────────────────┼───────────────────────────────┘
-                          │ HTTP
-┌─────────────────────────┼───────────────────────────────┐
-│                   Next.js Server                        │
-│                         │                               │
-│  ┌──────────────────────┴────────────────────────────┐  │
-│  │              API Route Handlers                    │  │
-│  │  /api/docker/*   /api/vscode/*   /api/chrome/*    │  │
-│  └──────────────────────┬────────────────────────────┘  │
-│                         │ fetch()                       │
-└─────────────────────────┼───────────────────────────────┘
-                          │
-         ┌────────────────┼─────────────────┐
-         ▼                ▼                 ▼
-  Docker Registry   VSCode Marketplace   Chrome Update
-  auth.docker.io    marketplace.         clients2.google
-  registry-1.       visualstudio.com     .com
-  docker.io                              chromewebstore.
-  hub.docker.com                         google.com
-```
+本项目面向现代桌面浏览器。
 
-### 4.2 API 代理模式
+### 4.2 服务端能力
 
-**核心约束：浏览器永远不直接调用外部服务。**
+服务端实现 MUST：
 
-所有外部 API 调用通过 Next.js API Route Handler 代理，原因：
+- 能发起 HTTP 请求到外部上游。
+- 能返回 JSON、二进制响应和流式响应。
+- 对 Docker 层下载 MUST 直接流式转发，不得先完整缓冲到服务端内存后再返回。
 
-1. **CORS 绕过** — Docker Registry / Chrome Update Service 不允许浏览器跨域请求
-2. **认证隔离** — Token 不暴露在前端代码中
-3. **请求伪装** — 服务端可设置自定义 User-Agent
+### 4.3 上游系统
 
-**例外：** VSCode 插件的最终下载链接（`vspackage` URL）直接在浏览器打开，因为 Marketplace 允许跨域下载。
+实现依赖以下上游接口或页面：
 
-所有 API 路由均返回 CORS 头和 OPTIONS 预检响应：
+- VSCode Marketplace
+  - `POST https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery`
+  - `GET https://marketplace.visualstudio.com/_apis/public/gallery/publishers/{publisher}/vsextensions/{extension}/{version}/vspackage`
+- Chrome Web Store / Chrome Update Service
+  - `GET https://chromewebstore.google.com/search/{query}`
+  - `GET https://chromewebstore.google.com/detail/{extensionId}`
+  - `GET https://clients2.google.com/service/update2/crx?...`
+- Docker Hub / Docker Registry
+  - `GET https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags?page_size=100`
+  - `GET https://hub.docker.com/v2/search/repositories/?query={q}&page_size={page_size}`
+  - `GET https://auth.docker.io/token?service=registry.docker.io&scope=repository:{namespace}/{repository}:pull`
+  - `GET https://registry-1.docker.io/v2/{namespace}/{repository}/manifests/{ref}`
+  - `GET https://registry-1.docker.io/v2/{namespace}/{repository}/blobs/{digest}`
 
-```
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, OPTIONS
-Access-Control-Allow-Headers: Content-Type
-```
+## 5. 页面与共享行为
 
-### 4.3 Feature 模块结构
+### 5.1 页面骨架
 
-每个功能模块遵循统一的四层结构：
+首页 `/` MUST 包含：
 
-```
-feature/
-├── types.ts           # 1. 类型定义层：接口和类型
-├── api/Service.ts     # 2. 服务层：与 API 通信、数据转换、二进制处理
-├── hooks/useXxx.ts    # 3. 状态层：React Hook 管理状态和流程编排
-└── components/Xxx.tsx # 4. 视图层：纯 UI 组件，消费 Hook 返回值
-```
+- 顶部标题 `Lixian.Online`
+- 一段简短站点描述
+- 三个标签页：`VSCode 插件`、`Chrome 拓展`、`Docker 镜像`
+- 默认激活标签：`VSCode 插件`
+- 页脚版本号，格式为 `v{version}`
+- 指向 GitHub 仓库的外链
 
-**调用关系：** `Component → Hook → Service → API Route → 外部服务`
+版本信息来源：
 
----
+- `NEXT_PUBLIC_APP_VERSION`，缺省值 `0.1.0`
+- `NEXT_PUBLIC_BUILD_TIME`，缺省值 `unknown`
+- `NEXT_PUBLIC_COMMIT_HASH`，缺省值 `unknown`
 
-## 5. 数据流
+### 5.2 全局反馈
 
-### 5.1 Docker 镜像下载流
+- 每个主要操作成功或失败后 SHOULD 给出即时反馈，例如 toast。
+- 二进制下载型操作 SHOULD 展示阶段性进度。
 
-这是最复杂的流程，涉及多步 API 调用和浏览器端二进制文件生成。
+### 5.3 历史记录
 
-```
-用户输入 "nginx:latest"
-        │
-        ▼
-extractImageInfo(imageUrl)
-  解析多种格式：
-  - "nginx:latest" → { registry:"docker.io", namespace:"library", repository:"nginx", tag:"latest" }
-  - "library/nginx:latest"
-  - "docker.io/library/nginx:latest"
-  - "hub.docker.com/r/library/nginx" (URL 格式)
-  解析规则：
-    1 段 → namespace 默认 "library"
-    2 段 → 第一段为 namespace
-    3 段 → 第一段为 registry
-    tag 默认 "latest"
-        │
-        ▼
-GET /api/docker/tags?namespace=library&repository=nginx
-  → 上游: https://registry.hub.docker.com/v2/repositories/library/nginx/tags?page_size=100
-  → 返回: { results: [{ name: "latest" }, { name: "alpine" }, ...] }
-  → 提取 tag 名称数组
-        │
-        ├── 若 404 → 搜索候选镜像
-        │   GET /api/docker/search?q=nginx&page_size=5
-        │   → 上游: https://hub.docker.com/v2/search/repositories/?query=nginx&page_size=5
-        │   → 展示候选列表供用户选择
-        │
-        ▼
-用户选择 tag → 用户点击"下载"
-        │
-        ▼
-GET /api/docker/auth?namespace=library&repository=nginx
-  → 上游: https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nginx:pull
-  → 返回: { token: "eyJ..." }
-        │
-        ▼
-GET /api/docker/manifest?namespace=library&repository=nginx&tag=latest&token=eyJ...
-  → 上游: https://registry-1.docker.io/v2/library/nginx/manifests/latest
-  → 请求头: Authorization: Bearer {token}
-            Accept: application/vnd.docker.distribution.manifest.v2+json
-  → 若返回 manifest list（多架构）:
-      自动选择 platform.architecture=amd64 && platform.os=linux
-      用其 digest 重新请求具体 manifest
-  → 返回: { schemaVersion, config: { digest }, layers: [{ digest, size }] }
-        │
-        ▼
-FOR EACH layer IN manifest.layers:
-  GET /api/docker/layer?namespace=library&repository=nginx&digest={digest}&token={token}
-    → 上游: https://registry-1.docker.io/v2/library/nginx/blobs/{digest}
-    → 流式传输，不在服务端缓冲
-    → 返回: gzip 压缩的 layer tar Blob
-        │
-        ▼
-浏览器端处理（DockerService.generateDockerLoadTar）:
-  1. 对每个 layer Blob 执行 decompressAndHash():
-     - 使用 DecompressionStream('gzip') 解压
-     - 使用 crypto.subtle.digest('SHA-256') 计算解压后数据的哈希
-     - 得到 { data: Uint8Array, sha256: "sha256:abc..." }
-  2. 使用 TarBuilder 构建 docker load 兼容的 TAR（见 6.1 节）
-  3. URL.createObjectURL(tarBlob) 生成下载链接
-        │
-        ▼
-<a href={blobUrl} download="nginx-latest.tar">下载</a>
-```
+系统 MUST 为 3 个输入框分别维护最近输入历史：
 
-### 5.2 VSCode 插件下载流
+| 功能 | localStorage key |
+| --- | --- |
+| VSCode | `history:vscode` |
+| Chrome | `history:chrome` |
+| Docker | `history:docker` |
 
-```
-用户粘贴 "https://marketplace.visualstudio.com/items?itemName=ms-python.python"
-        │
-        ▼
-extractExtensionInfo(url)
-  解析 URL 的 itemName 参数
-  用 lastIndexOf('.') 分割（处理 publisher 含点号的情况）
-  → { publisher: "ms-python", extension: "python", version: null }
-        │
-        ▼
-用户点击"解析" → handleSubmit()
-        │
-        ▼
-POST /api/vscode/query
-  → 上游: https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery
-  → 请求头: Accept: application/json;api-version=3.0-preview.1
-  → 请求体:
+历史记录规则：
+
+- 最多保留 10 条。
+- 新值插入头部。
+- 重复值去重后前移。
+- 仅保存去除首尾空格后的非空字符串。
+- 历史下拉 SHOULD 按当前输入做不区分大小写的包含匹配。
+
+### 5.4 Blob URL 生命周期
+
+- Chrome 和 Docker 下载完成后，客户端 MUST 使用 Blob URL 暴露下载结果。
+- 重新下载前 MUST 撤销旧的 Blob URL。
+- 组件卸载时 MUST 撤销所有仍存活的 Blob URL。
+
+## 6. 功能规格
+
+### 6.1 VSCode 插件下载
+
+#### 6.1.1 输入与解析
+
+- 输入 MUST 是 VSCode Marketplace 插件页 URL。
+- URL 中 MUST 存在查询参数 `itemName`。
+- `itemName` MUST 形如 `publisher.extension`。
+- 解析时 MUST 使用最后一个 `.` 分割 publisher 与 extension，以兼容包含 `.` 的 publisher。
+- 解析阶段不要求 version；version 初始值为 `null`。
+
+非法输入的错误语义：
+
+- URL 不合法或仍在输入中：可暂不报错，但不可形成有效插件信息。
+- 缺少 `itemName`：报错“无效的插件 URL”。
+- `itemName` 中没有 `.`：报错“无效的插件 ID 格式，应为 publisher.extension”。
+
+#### 6.1.2 查询版本
+
+用户提交后，客户端 MUST 调用 `POST /api/vscode/query`，请求体固定为：
+
+```json
+{
+  "filters": [
     {
-      "filters": [{
-        "criteria": [{ "filterType": 7, "value": "ms-python.python" }],
-        "pageNumber": 1, "pageSize": 1, "sortBy": 0, "sortOrder": 0
-      }],
-      "flags": 1  // 0x1 = 仅返回版本列表
+      "criteria": [
+        {
+          "filterType": 7,
+          "value": "publisher.extension"
+        }
+      ],
+      "pageNumber": 1,
+      "pageSize": 1,
+      "sortBy": 0,
+      "sortOrder": 0
     }
-  → 提取: results[0].extensions[0].versions → 去重取前 20 个
-        │
-        ▼
-用户选择版本 → useEffect 自动触发 getDownloadUrl()
-        │
-        ▼
-生成直链（不经过代理，Marketplace 允许跨域下载）:
-  https://marketplace.visualstudio.com/_apis/public/gallery/publishers/
-    {publisher}/vsextensions/{extension}/{version}/vspackage
-        │
-        ▼
-<a href={downloadUrl} target="_blank">下载</a>
-```
-
-### 5.3 Chrome 扩展下载流
-
-```
-用户输入扩展名称 / 32 位 ID / Web Store URL
-        │
-        ├── 防抖搜索（400ms）:
-        │   GET /api/chrome/search?q={keyword}
-        │     → 上游: https://chromewebstore.google.com/search/{keyword}
-        │     → 从 HTML 中正则提取: /detail\/([^/]+)\/([a-z]{32})/g
-        │     → slug 转可读名: "ublock-origin" → "Ublock Origin"（首字母大写、连字符转空格）
-        │     → 去重，最多 10 条
-        │   跳过搜索的条件：输入 < 2 字符 / 已是 32 位 ID / 包含 . 或 /
-        │
-        ▼
-用户点击"解析" → handleSubmit()
-  extractExtensionId(input)
-    - URL: 正则 /([a-z]{32})/ 提取
-    - 直接 ID: /^[a-z]{32}$/ 校验
-  → GET /api/chrome/detail?id={extensionId}
-    → 上游: https://chromewebstore.google.com/detail/{extensionId}
-    → 从 HTML 提取 <title> 和 <meta description>
-    → 返回真实名称和描述
-  → 设置 extensionInfo（合并搜索结果中已有的名称）
-        │
-        ▼
-用户点击下载 → handleDownload(format: 'crx' | 'zip' | 'both')
-  支持 AbortController 取消下载
-        │
-        ▼
-GET /api/chrome/download?id={extensionId}
-  → 上游: https://clients2.google.com/service/update2/crx?...
-  → 服务端使用 Chrome 131 User-Agent 伪装
-  → 空响应校验（返回 404 而非 0 KB 文件）
-  → 返回: CRX 二进制文件
-  → 客户端使用 ReadableStream 流式读取，实时显示下载进度
-        │
-        ├── format = 'crx':
-        │   URL.createObjectURL(crxBlob)
-        │
-        ├── format = 'zip':
-        │   convertCrxToZip(crxBlob) → 见 6.2 节
-        │   URL.createObjectURL(zipBlob)
-        │
-        └── format = 'both':
-            同时生成 CRX 和 ZIP 的 Blob URL
-            ZIP 转换失败时降级为仅提供 CRX
-        │
-        ▼
-<a href={blobUrl} download="{id}.crx">下载 CRX</a>
-<a href={blobUrl} download="{id}.zip">下载 ZIP</a>
-```
-
----
-
-## 6. 关键实现细节
-
-### 6.1 Docker TAR 构建（`docker load` 兼容格式）
-
-浏览器端使用 `TarBuilder` 类（见 6.3 节）生成 `docker load` 可直接导入的 TAR 文件。
-
-#### TAR 内部结构
-
-```
-manifest.json                      # 顶层清单
-{imageId}.json                     # 镜像配置
-{layerId1}/                        # 第一层目录
-  VERSION                          # 固定内容 "1.0"
-  json                             # 层元数据 JSON
-  layer.tar                        # 解压后的层数据（非 gzip）
-{layerId2}/                        # 第二层目录
-  VERSION
-  json
-  layer.tar
-...
-[512 字节全零]                      # TAR 终止标记 1
-[512 字节全零]                      # TAR 终止标记 2
-```
-
-#### manifest.json
-
-```json
-[{
-  "Config": "{imageId}.json",
-  "RepoTags": ["library/nginx:latest"],
-  "Layers": ["{layerId1}/layer.tar", "{layerId2}/layer.tar"]
-}]
-```
-
-#### {imageId}.json（镜像配置）
-
-```json
-{
-  "architecture": "amd64",
-  "os": "linux",
-  "docker_version": "20.10.0",
-  "created": "2025-01-01T00:00:00.000Z",
-  "config": {
-    "Hostname": "", "Domainname": "", "User": "",
-    "AttachStdin": false, "AttachStdout": false, "AttachStderr": false,
-    "Tty": false, "OpenStdin": false, "StdinOnce": false,
-    "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
-    "Cmd": null, "Image": "", "Volumes": null, "WorkingDir": "",
-    "Entrypoint": null, "OnBuild": null, "Labels": null
-  },
-  "container_config": {
-    "Hostname": "", "Domainname": "", "User": "",
-    "AttachStdin": false, "AttachStdout": false, "AttachStderr": false,
-    "Tty": false, "OpenStdin": false, "StdinOnce": false,
-    "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
-    "Cmd": ["/bin/sh", "-c", "#(nop) ADD file: in /"],
-    "Image": "", "Volumes": null, "WorkingDir": "",
-    "Entrypoint": null, "OnBuild": null, "Labels": {}
-  },
-  "history": [
-    { "created": "...", "created_by": "/bin/sh -c #(nop) ADD file: in /" }
   ],
-  "rootfs": {
-    "type": "layers",
-    "diff_ids": ["sha256:abc...", "sha256:def..."]
-  }
+  "flags": 1
 }
 ```
 
-**关键约束：** `diff_ids` 必须是**解压后** layer.tar 内容的 SHA-256 哈希（不是 gzip 压缩态的哈希）。`docker load` 会校验此值。
+版本列表提取规则：
 
-#### {layerId}/json（层元数据）
+- 从 `results[0].extensions[0].versions[].version` 读取。
+- 去重。
+- 保持上游顺序。
+- 最多保留前 20 个版本。
+
+若未找到扩展，客户端 MUST 报错“未找到该插件，请检查 URL 是否正确”。
+
+#### 6.1.3 下载
+
+- 版本列表返回后，页面 MUST 展示版本选择器。
+- 用户选择版本后，客户端 MUST 直接构造 `.vsix` 下载 URL，而不是再经由本项目代理。
+- URL 模板如下：
+
+```text
+https://marketplace.visualstudio.com/_apis/public/gallery/publishers/{publisher}/vsextensions/{extension}/{version}/vspackage
+```
+
+- 页面 MUST 将此 URL 暴露为可点击下载链接。
+
+### 6.2 Chrome 扩展下载
+
+#### 6.2.1 输入与搜索
+
+Chrome 标签页输入框 MUST 接受以下任一形式：
+
+- 扩展名称
+- 32 位扩展 ID
+- Chrome Web Store URL
+
+搜索行为：
+
+- 输入变化后 SHOULD 触发 400ms 防抖。
+- 满足以下任一条件时 MUST 跳过搜索：
+  - 去除空格后长度小于 2
+  - 输入为 32 位小写字母 ID
+  - 输入包含 `.` 或 `/`
+- 其余情况 MUST 调用 `GET /api/chrome/search?q=...`。
+
+#### 6.2.2 ID 提取
+
+提交时客户端 MUST 从输入中提取扩展 ID，规则如下：
+
+- 优先用正则 `([a-z]{32})` 在整段输入中查找。
+- 若输入整体是 32 位字母，可按小写化后接受。
+- 无法得到合法 ID 时 MUST 报错“无效的 Chrome 扩展 URL 或 ID”。
+
+#### 6.2.3 详情查询
+
+解析出 ID 后，客户端 MUST 调用 `GET /api/chrome/detail?id={id}` 获取名称和描述。
+
+- 若成功，页面显示 `name`、`description`、`id`。
+- 若失败，客户端 MAY 降级为只显示 `id`，不阻断后续下载。
+
+#### 6.2.4 下载格式
+
+页面 MUST 提供 3 个下载动作：
+
+- 仅下载 CRX
+- 仅下载 ZIP
+- 同时准备 CRX 和 ZIP
+
+下载流程：
+
+1. 调用 `GET /api/chrome/download?id={id}` 获取 CRX 二进制。
+2. 若响应带 `Content-Length` 且可读取流，客户端 SHOULD 边读边更新进度。
+3. 若无 `Content-Length`，客户端 MAY 只展示阶段性进度。
+4. 当用户选择 ZIP 或“全部下载”时，客户端 MUST 在浏览器端执行 CRX 到 ZIP 的转换。
+5. 完成后 MUST 为每个可下载结果生成 Blob URL。
+
+取消规则：
+
+- 下载进行中，用户 SHOULD 可以取消。
+- 取消 MUST 中止当前请求，并清空当前进度状态。
+
+#### 6.2.5 CRX 转 ZIP 规范
+
+客户端 MUST 按以下优先级转换：
+
+1. 若文件长度小于 16 字节，直接返回原始 Blob。
+2. 若文件前 2 字节为 `PK`，认定文件已经是 ZIP，直接返回 ZIP Blob。
+3. 若文件前 4 字节为 `Cr24`：
+   - 版本 3：`zipOffset = 12 + headerSize`
+   - 版本 2：`zipOffset = 16 + publicKeyLength + signatureLength`
+   - 其他版本：视为不支持
+4. 若不是 `Cr24`，在前 1024 字节内查找 `PK`；找到则从该偏移截取 ZIP。
+5. 若仍找不到 `PK`，可退化为“整个文件就是 ZIP”。
+6. 截取后的数据 MUST 再验证其前 2 字节为 `PK`。
+
+转换失败的回退规则：
+
+- 客户端 MUST 保留原始 CRX 作为兜底下载结果。
+- 即使用户只请求 ZIP，只要 ZIP 转换失败，系统仍可暴露 CRX 下载链接。
+
+### 6.3 Docker 镜像下载
+
+#### 6.3.1 输入与解析
+
+客户端 MUST 支持以下输入形式：
+
+- `nginx:latest`
+- `library/nginx:latest`
+- `docker.io/library/nginx:latest`
+- `https://hub.docker.com/r/library/nginx`
+
+解析规则：
+
+- 默认 `registry = docker.io`
+- 默认 `namespace = library`
+- 默认 `tag = latest`
+- Docker Hub 页面 URL 只解析 `hub.docker.com/r/{namespace}/{repository}`
+- 直接镜像名按 `/` 分段：
+  - 1 段：`repository[:tag]`
+  - 2 段：`namespace/repository[:tag]`
+  - 3 段：`registry/namespace/repository[:tag]`
+
+超出以上格式的更复杂镜像引用不属于当前规范范围。
+
+#### 6.3.2 解析与标签列表
+
+用户提交后，客户端 MUST：
+
+1. 解析镜像信息。
+2. 调用 `GET /api/docker/tags?namespace={namespace}&repository={repository}`。
+3. 从返回值的 `results[].name` 提取标签列表。
+
+若标签列表为空，或接口返回 404，客户端 MUST：
+
+- 标记“镜像不存在”
+- 调用 `GET /api/docker/search?q={repository-or-raw-input}&page_size=5`
+- 显示最多 5 个候选镜像
+- 提供到 Docker Hub 搜索页和仓库页的外链
+
+#### 6.3.3 下载流程
+
+用户选择标签后，点击下载时客户端 MUST 顺序执行：
+
+1. 调用 `GET /api/docker/auth` 获取匿名 pull token。
+2. 调用 `GET /api/docker/manifest` 获取镜像清单。
+3. 再次调用 `GET /api/docker/auth` 获取层下载 token。
+4. 对 `manifest.layers[]` 按顺序逐层调用 `GET /api/docker/layer`。
+5. 所有层下载完成后，在浏览器端生成 `docker load` 兼容 tar。
+6. 为 tar 生成 Blob URL，并提供下载。
+
+下载过程约束：
+
+- 层下载 MUST 串行，而不是并行。
+- 进度 MUST 至少体现“当前第几层 / 总层数”。
+- 输出文件名 MUST 为 `{repository}-{tag}.tar`。
+
+#### 6.3.4 Manifest 选择规则
+
+若 `/api/docker/manifest` 得到的清单 `mediaType` 为：
+
+- `application/vnd.docker.distribution.manifest.list.v2+json`
+- `application/vnd.oci.image.index.v1+json`
+
+则实现 MUST 在 `manifests[]` 中选择：
+
+- `platform.os === "linux"`
+- `platform.architecture === "amd64"`
+
+若不存在该平台，接口 MUST 返回 404。
+
+#### 6.3.5 docker load tar 生成规范
+
+浏览器端生成的 tar MUST 至少包含：
+
+- `manifest.json`
+- `{imageId}.json`
+- 对每一层生成目录 `{layerId}/`
+- 每层目录下包含：
+  - `VERSION`
+  - `json`
+  - `layer.tar`
+
+其中：
+
+- `layer.tar` MUST 是该层 gzip 解压后的原始 tar 数据，不可继续保留 gzip。
+- `rootfs.diff_ids` MUST 使用“解压后 tar 数据”的 SHA-256，格式 `sha256:{hex}`。
+- `manifest.json` 的 `RepoTags` MUST 包含单个条目 `{namespace}/{repository}:{tag}`。
+- 若 `namespace` 为空，仍按当前实现使用默认 `library`。
+
+当前实现采用以下标识算法，复现时 SHOULD 保持一致：
+
+- `imageId`：对完整镜像标签字符串 `{namespace}/{repository}:{tag}` 做简化 32 位整数哈希，取绝对值，转 16 进制并左侧补零到 12 位。
+- `layerId`：取层 digest 去掉 `sha256:` 后的前 12 个字符。
+
+#### 6.3.6 TAR 封装规则
+
+若自行实现 tar 写入器，输出 MUST 满足：
+
+- 每个条目有 512 字节头部。
+- 普通文件使用 typeflag `0`，目录使用 typeflag `5`。
+- 文件内容后 MUST 做 512 字节对齐填充。
+- checksum 计算时，checksum 字段 MUST 视作 8 个空格。
+- 归档末尾 MUST 追加两个全零的 512 字节块。
+
+## 7. 内部 HTTP API 规格
+
+### 7.1 通用约定
+
+- Base URL 为同源 `/api`。
+- JSON 错误体统一为 `{ "error": "..." }`。
+- 除明确说明的二进制接口外，成功响应均为 JSON。
+- 本项目内部 API 主要给同源前端调用，不要求统一提供跨域能力；仅当前实现中显式声明的路由需要返回 CORS / OPTIONS。
+
+### 7.2 `POST /api/vscode/query`
+
+- 用途：代理 VSCode Marketplace 扩展查询。
+- 上游：`POST https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery`
+- 上游请求头：
+  - `Content-Type: application/json`
+  - `Accept: application/json;api-version=3.0-preview.1`
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+- 请求体：原样透传客户端 JSON。
+- 成功：返回上游 JSON。
+- 失败：
+  - 上游非 2xx：透传其状态码，并返回 `{ error: "Marketplace API error: {status}" }`
+  - 本地异常：500
+
+### 7.3 `GET /api/chrome/search`
+
+- 用途：抓取 Chrome Web Store 搜索页，提取候选扩展。
+- 参数：
+  - `q`，必填
+- 上游：`GET https://chromewebstore.google.com/search/{encodeURIComponent(q)}`
+- 上游请求头：
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+  - `Accept-Language: zh-CN,zh;q=0.9,en;q=0.8`
+- 解析规则：
+  - 用正则 `detail\/([^/]+)\/([a-z]{32})` 提取 `(slug, id)`
+  - 按 `id` 去重
+  - 名称由 slug 转换得到：按 `-` 分词，每段首字母大写，再用空格连接
+  - 最多返回 10 条
+- 成功响应：
 
 ```json
 {
-  "id": "{layerId}",
-  "parent": "{parentLayerId}",
-  "created": "...",
-  "container_config": { "Cmd": ["/bin/sh", "-c", "#(nop) ADD file: in /"] }
+  "results": [
+    { "id": "cjpalhdlnbpafiamejdnhcphjbkeiagm", "name": "Ublock Origin" }
+  ]
 }
 ```
 
-第一层无 `parent` 字段，后续层的 `parent` 指向前一层的 ID。
+- 失败：
+  - 缺少 `q`：400
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
 
-#### ID 生成算法
+### 7.4 `GET /api/chrome/detail`
 
-- **imageId**：对 `"{namespace}/{repository}:{tag}"` 字符串做简单哈希（DJB2 变体），取绝对值后转 16 进制，左补零至 12 位
+- 用途：抓取扩展详情页中的名称与描述。
+- 参数：
+  - `id`，必填，必须匹配 `^[a-z]{32}$`
+- 上游：`GET https://chromewebstore.google.com/detail/{id}`
+- 上游请求头：
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+  - `Accept-Language: zh-CN,zh;q=0.9,en;q=0.8`
+- HTML 提取规则：
+  - 名称：`/<title>(.+?)\s*[-–—]\s*Chrome[^<]*<\/title>/`
+  - 描述：`/meta\s+name="description"\s+content="([^"]*)"/`
+- 成功响应：
 
-  ```
-  hash = 0
-  for each char: hash = ((hash << 5) - hash) + charCode; hash &= hash
-  return abs(hash).toString(16).padStart(12, '0')
-  ```
-
-- **layerId**：取 digest 的 `sha256:` 前缀后的前 12 个字符
-
-#### 解压与哈希流程
-
-```typescript
-async decompressAndHash(blob: Blob): Promise<{ data: Uint8Array; sha256: string }> {
-  // 1. 使用 Web API DecompressionStream('gzip') 解压
-  // 2. 收集所有 chunk 合并为 Uint8Array
-  // 3. crypto.subtle.digest('SHA-256', data) 计算哈希
-  // 4. 转为 "sha256:" + hex 字符串
-  return { data, sha256 };
+```json
+{
+  "id": "epcnnfbjfcgphgdmggkamkmgojdagdnn",
+  "name": "uBlock",
+  "description": "..."
 }
 ```
 
-### 6.2 CRX 二进制解析（CRX → ZIP 转换）
+- `name` 和 `description` MAY 缺失。
+- 失败：
+  - 非法 `id`：400
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
 
-Chrome 扩展文件 (CRX) 本质是 ZIP 前加了一个头部。转换过程就是跳过头部提取 ZIP 载荷。
+### 7.5 `GET /api/chrome/download`
 
-#### CRX3 格式（Chrome 64+）
+- 用途：下载 CRX 文件。
+- 参数：
+  - `id`，必填，必须匹配 `^[a-z]{32}$`
+- 上游 URL MUST 由下列参数构造：
 
-```
-偏移  大小    内容
-0     4B     魔数: "Cr24" (0x43723234)
-4     4B     版本号: 3 (uint32 little-endian)
-8     4B     头部长度 N (uint32 little-endian)
-12    NB     protobuf 编码的签名头
-12+N  ...    ZIP 数据开始（以 "PK" 开头）
-```
-
-#### CRX2 格式（旧版）
-
-```
-偏移  大小    内容
-0     4B     魔数: "Cr24"
-4     4B     版本号: 2 (uint32 little-endian)
-8     4B     公钥长度 P (uint32 little-endian)
-12    4B     签名长度 S (uint32 little-endian)
-16    PB     公钥数据
-16+P  SB     签名数据
-16+P+S ...   ZIP 数据开始
-```
-
-#### 解析优先级
-
-1. 检查前 2 字节是否为 `"PK"` → 已是 ZIP，直接返回
-2. 检查前 4 字节是否为 `"Cr24"` → 按版本号（3 或 2）计算偏移
-3. 兜底：在前 1024 字节中扫描 `"PK"` 魔数
-4. 均未找到 → 假定整个文件为 ZIP 格式
-5. 任何解析错误 → 返回原始文件
-
-#### ZIP 校验
-
-提取后验证前 2 字节为 `"PK"` (`0x504B`)，否则抛出错误。
-
-### 6.3 TAR 文件格式（TarBuilder 规范）
-
-浏览器端 TAR 构建器，不依赖任何第三方库。
-
-#### TAR 头部（512 字节）
-
-```
-偏移    大小    内容                    格式
-0       100B   文件名                  null 结尾的 ASCII
-100     8B     文件模式                8 进制，7 位左补零 + null ("0000644\0")
-108     8B     用户 ID                 同上 ("0000000\0")
-116     8B     组 ID                   同上
-124     12B    文件大小                8 进制，11 位左补零 + null
-136     12B    修改时间                Unix 时间戳的 8 进制，11 位左补零 + null
-148     8B     校验和                  见下方算法
-156     1B     类型标志                '0' = 普通文件, '5' = 目录
-157     355B   其余字段                全零
+```text
+response=redirect
+os=win
+arch=x64
+os_arch=x86_64
+nacl_arch=x86-64
+prod=chromecrx
+prodchannel=beta
+prodversion=131.0.6778.86
+lang=zh-CN
+acceptformat=crx2,crx3
+x=id={id}&installsource=ondemand&uc
 ```
 
-#### 校验和算法
+- 上游请求头 MUST 使用桌面 Chrome UA：
 
-1. 将 header[148..155]（8 字节）填充为 ASCII 空格 `0x20`
-2. 设置好所有其他字段（包括 typeflag）
-3. 对 512 字节逐字节求和：`checksum = Σ header[i], i ∈ [0, 511]`
-4. 将结果写入 header[148]：6 位 8 进制左补零 + null + 空格 (`"001234\0 "`)
+```text
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+```
 
-#### 文件对齐
+- 成功响应：
+  - `Content-Type: application/x-chrome-extension`
+  - `Content-Disposition: attachment; filename="{id}.crx"`
+  - `Cache-Control: public, max-age=3600`
+  - Body 为完整 CRX 二进制
+- 失败：
+  - 缺少 `id` 或格式错误：400
+  - 上游返回空文件：404
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
+- 当前实现还 MUST 提供 `OPTIONS` 响应和基本 CORS 头。
 
-每个文件的数据段必须 512 字节对齐，不足部分补零。
+### 7.6 `GET /api/docker/tags`
 
-#### 目录条目
+- 用途：读取镜像标签列表。
+- 参数：
+  - `namespace`，可选，默认 `library`
+  - `repository`，必填
+- 上游：`GET https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags?page_size=100`
+- 上游请求头：
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+  - `Accept: application/json`
+- 成功：返回上游 JSON，并带 `Cache-Control: public, max-age=300`
+- 失败：
+  - 缺少 `repository`：400
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
+- 当前实现还 MUST 提供 `OPTIONS` 响应和基本 CORS 头。
 
-- 文件名以 `/` 结尾
-- 类型标志为 `'5'`
-- 大小为 0
-- 模式为 `0000755`
+### 7.7 `GET /api/docker/auth`
 
-#### TAR 终止
+- 用途：获取匿名 pull token。
+- 参数：
+  - `namespace`，可选，默认 `library`
+  - `repository`，必填
+- 上游：
 
-文件末尾追加两个全零的 512 字节块。
+```text
+https://auth.docker.io/token?service=registry.docker.io&scope=repository:{namespace}/{repository}:pull
+```
 
-#### API
+- 上游请求头：
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+  - `Accept: application/json`
+- 成功：返回上游 JSON，并带 `Cache-Control: public, max-age=1800`
+- 客户端只使用 `token` 字段。
+- 失败：
+  - 缺少 `repository`：400
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
+- 当前实现还 MUST 提供 `OPTIONS` 响应和基本 CORS 头。
 
-```typescript
-class TarBuilder {
-  addFile(name: string, content: string | Uint8Array): void
-  addDirectory(name: string): void
-  build(): Uint8Array
+### 7.8 `GET /api/docker/manifest`
+
+- 用途：获取单架构镜像清单；必要时从 manifest list 中选出 `linux/amd64`。
+- 参数：
+  - `namespace`，可选，默认 `library`
+  - `repository`，必填
+  - `tag`，可选，默认 `latest`
+  - `token`，必填
+- 第一次上游请求：
+
+```text
+GET https://registry-1.docker.io/v2/{namespace}/{repository}/manifests/{tag}
+```
+
+- 请求头：
+  - `Authorization: Bearer {token}`
+  - `Accept: application/vnd.docker.distribution.manifest.v2+json`
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+- 若返回 manifest list / OCI index，则 MUST 再次按选中的 digest 请求具体 manifest。
+- 成功响应最少包含：
+
+```json
+{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+  "config": {
+    "mediaType": "...",
+    "size": 5312,
+    "digest": "sha256:..."
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+      "size": 27092550,
+      "digest": "sha256:..."
+    }
+  ]
 }
 ```
 
----
+- 失败：
+  - 缺少 `repository`：400
+  - 缺少 `token`：401
+  - manifest list 中没有 `linux/amd64`：404
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
+- 成功响应带 `Cache-Control: public, max-age=3600`
+- 当前实现还 MUST 提供 `OPTIONS` 响应和基本 CORS 头。
 
-## 7. 类型定义
+### 7.9 `GET /api/docker/layer`
 
-### Docker
+- 用途：下载单层 gzip 压缩 tar，并直接流式回传。
+- 参数：
+  - `namespace`，必填
+  - `repository`，必填
+  - `digest`，必填
+  - `token`，必填
+- 注意：该接口当前实现不提供 `namespace` 默认值；即使是官方镜像，也必须显式传 `library`。
+- 上游：
 
-```typescript
-interface DockerImageInfo {
-  registry: string;      // "docker.io"
-  namespace: string;     // "library" | "myuser"
-  repository: string;    // "nginx"
-  tag: string;           // "latest"
-}
-
-interface DockerManifest {
-  schemaVersion: number;
-  mediaType: string;
-  config: {
-    mediaType: string;
-    size: number;
-    digest: string;      // "sha256:..."
-  };
-  layers: Array<{
-    mediaType: string;   // "application/vnd.docker.image.rootfs.diff.tar.gzip"
-    size: number;
-    digest: string;
-  }>;
-}
-
-interface DockerTagInfo {
-  name: string;
-  tags: string[];
-}
-
-interface DockerSearchCandidate {
-  namespace: string;
-  repository: string;
-  shortDescription: string;
-  starCount: number;
-  pullCount: number;
-}
-
-interface DockerDownloadProgress {
-  layerIndex: number;
-  totalLayers: number;
-  currentLayerSize: number;
-  downloadedSize: number;
-  totalSize: number;
-  status: 'downloading' | 'completed' | 'error';
-}
+```text
+GET https://registry-1.docker.io/v2/{namespace}/{repository}/blobs/{digest}
 ```
 
-### VSCode
+- 请求头：
+  - `Authorization: Bearer {token}`
+  - `Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json`
+- 成功：
+  - Body MUST 直接使用上游 `response.body`
+  - `Content-Type` 和 `Content-Length` SHOULD 透传上游
+- 失败：
+  - 任一参数缺失：400
+  - 上游无 body：502
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
+- 当前实现还 MUST 提供 `OPTIONS` 响应和基本 CORS 头。
 
-```typescript
-interface ExtensionInfo {
-  publisher: string;     // "ms-python"
-  extension: string;     // "python"
-  version: string | null;
-}
+### 7.10 `GET /api/docker/search`
 
-interface VersionInfo {
-  lastUpdated: string;
-  shortDescription: string;
-  versionList: string[];
-}
+- 用途：搜索 Docker Hub 镜像，用于镜像不存在时的候选提示。
+- 参数：
+  - `q`，必填
+  - `page_size`，可选，默认 `5`
+- `page_size` MUST 被裁剪到 `1..100`，并向下取整。
+- 上游：
+
+```text
+GET https://hub.docker.com/v2/search/repositories/?query={q}&page_size={page_size}
 ```
 
-### Chrome
-
-```typescript
-interface ChromeExtensionInfo {
-  id: string;            // 32 位小写字母
-  name?: string;
-  version?: string;
-  description?: string;
-  author?: string;
-  rating?: number;
-  userCount?: string;
-  iconUrl?: string;
-}
-
-interface ChromeDownloadInfo {
-  extensionId: string;
-  downloadUrl: string;
-  filename: string;
-  fileSize?: number;
-}
-
-interface ChromeDownloadProgress {
-  status: 'idle' | 'downloading' | 'converting' | 'completed' | 'error';
-  progress: number;      // 0-100
-  bytesDownloaded: number;
-  totalBytes: number;
-  error?: string;
-}
-
-interface ChromeSearchResult {
-  id: string;
-  name: string;
-}
-```
-
----
-
-## 8. 状态管理
-
-不使用全局 Store，每个功能模块通过自定义 Hook 管理局部状态。
-
-### 各 Hook 状态与回调
-
-#### useDockerDownloader
-
-| 状态 | 类型 | 用途 |
-|------|------|------|
-| `imageUrl` | `string` | 用户输入 |
-| `tagList` | `string[]` | 可用标签 |
-| `imageInfo` | `DockerImageInfo \| null` | 解析后的镜像信息 |
-| `downloadProgress` | `DockerDownloadProgress \| null` | 下载进度 |
-| `downloadUrl` | `string` | Blob URL |
-| `loading` | `boolean` | 加载状态 |
-| `imageNotFound` | `boolean` | 镜像未找到 |
-| `searchCandidates` | `DockerSearchCandidate[]` | 候选镜像 |
-
-| 回调 | 作用 |
-|------|------|
-| `onImageUrlChange(e)` | 更新输入，重置所有状态 |
-| `onTagChange(value)` | 函数式 setState 更新 tag |
-| `handleSubmit(e)` | 解析输入、获取标签 |
-| `handleDownload()` | 通过 ref 读取 imageInfo，执行完整下载流 |
-
-#### useVSCodeDownloader
-
-| 状态 | 类型 |
-|------|------|
-| `url` | `string` |
-| `versionList` | `string[]` |
-| `extensionInfo` | `ExtensionInfo \| null` |
-| `downloadUrl` | `string` |
-| `loading` | `boolean` |
-
-自动行为：当 `extensionInfo.version` 变化时，`useEffect` 自动调用 `getDownloadUrl()` 更新下载链接。
-
-#### useChromeDownloader
-
-| 状态 | 类型 |
-|------|------|
-| `extensionUrl` | `string` |
-| `extensionInfo` | `ChromeExtensionInfo \| null` |
-| `downloadProgress` | `ChromeDownloadProgress \| null` |
-| `downloadUrls` | `{ crx?: string; zip?: string }` |
-| `loading` | `boolean` |
-| `searchResults` | `ChromeSearchResult[]` |
-| `searching` | `boolean` |
-
-| 回调 | 作用 |
-|------|------|
-| `onUrlChange(e)` | 更新输入，清除 extensionInfo 和下载状态 |
-| `selectSearchResult(result)` | 选择搜索结果，设置 ID 和名称 |
-| `handleSubmit(e)` | 解析 ID，调用 `/api/chrome/detail` 获取真实名称和描述 |
-| `handleDownload(format)` | 流式下载 CRX，支持实时进度（ReadableStream） |
-| `cancelDownload()` | 通过 AbortController 取消进行中的下载 |
-
-搜索防抖：`onSearchInputChange` 内使用 `setTimeout` 400ms 防抖，ref 跟踪 timer，组件卸载时清除。
-
-### 通用 Hook
-
-#### useHistory(storageKey: string)
-
-- 状态惰性初始化：`useState(() => localStorage.getItem(key))`
-- `add(value)` 函数式更新，去重，保留最新，上限 10 条
-- 三个独立 storageKey：`history:docker`、`history:vscode`、`history:chrome`
-
-#### useToast
-
-- 基于 Radix Toast 的全局通知系统
-- 模块级 `listeners` 数组 + `memoryState` 实现跨组件状态同步
-- `toast({ title, description, variant })` → 创建通知
-- 自动 5 秒后移除
-
-### Blob URL 管理
-
-所有功能模块通过 `useRef` 跟踪 Blob URL，遵循：
-
-1. 创建新 Blob URL 前，先 `URL.revokeObjectURL()` 旧的
-2. 组件卸载时的 cleanup effect 中释放所有 Blob URL
-
-### useCallback 稳定性策略
-
-- 使用函数式 `setState(prev => ...)` 消除对象依赖
-- 使用 `useRef` 同步最新状态，使 download 回调的依赖数组为 `[]`
-
----
-
-## 9. 缓存策略
-
-| 接口 | Cache-Control | TTL | 理由 |
-|------|---------------|-----|------|
-| `/api/docker/tags` | `public, max-age=300` | 5 分钟 | 标签变动频繁 |
-| `/api/docker/auth` | `public, max-age=1800` | 30 分钟 | Token 有效期通常 > 30 分钟 |
-| `/api/docker/manifest` | `public, max-age=3600` | 1 小时 | 清单相对稳定 |
-| `/api/docker/search` | `public, max-age=300` | 5 分钟 | 搜索结果时效性 |
-| `/api/chrome/download` | `public, max-age=3600` | 1 小时 | 扩展版本不频繁更新 |
-| `/api/chrome/detail` | 无缓存 | — | 详情信息实时性 |
-| `/api/vscode/query` | 无缓存 | — | 每次查询可能不同 |
-| `/api/chrome/search` | 无缓存 | — | 搜索结果实时性 |
-| `/api/docker/layer` | 无缓存 | — | 大文件流式传输 |
-
----
-
-## 10. 安全设计
-
-### 输入校验
-
-| 输入 | 校验规则 |
-|------|----------|
-| Chrome 扩展 ID | `/^[a-z]{32}$/` 严格匹配 |
-| VSCode URL | `new URL()` 解析 + `itemName` 参数存在性 + `lastIndexOf('.')` 分割 |
-| Docker 镜像名 | 按 `/` 分段解析，1-3 段各有默认值 |
-| Docker search page_size | `Math.min(100, Math.max(1, Math.floor(n)))` 限制范围 |
-
-### 请求伪装
-
-- 通用 User-Agent：`"Mozilla/5.0 (compatible; lixian.online/1.0)"`
-- Chrome 下载专用 User-Agent：完整 Chrome 131 浏览器 UA 字符串
-- Chrome 搜索附加：`Accept-Language: zh-CN,zh;q=0.9,en;q=0.8`
-
-### 其他
-
-- 输入框添加 `data-1p-ignore` 属性防止密码管理器误触发
-- Docker 层下载使用流式传输（`response.body` 直传），避免服务端内存溢出
-
----
-
-## 11. 构建与部署
-
-### 环境变量注入（构建时）
-
-`next.config.js` 在构建期注入：
-
-```javascript
-env: {
-  NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
-  NEXT_PUBLIC_BUILD_TIME: process.env.NODE_ENV === 'production'
-    ? new Date().toISOString()
-    : 'development',
-  NEXT_PUBLIC_COMMIT_HASH: execFileSync('git', ['rev-parse', '--short', 'HEAD']).trim(),
-}
-```
-
-页面底部 footer 展示版本号，hover 显示构建时间和 commit hash。
-
-### 命令
-
-```bash
-npm run dev        # Next.js 开发服务器（带 --inspect 调试）
-npm run build      # 生产构建
-npm run start      # 生产启动
-npm run lint       # ESLint 检查
-```
-
-### 代码拆分
-
-首页三个下载器组件使用 `next/dynamic` 动态导入：
-
-```typescript
-const VSCodeDownloader = dynamic(
-  () => import("@/features/vscode/components/VSCodeDownloader"),
-  { ssr: false, loading: DynamicFallback }
-);
-```
-
-`ssr: false` 确保组件仅在客户端渲染，避免 hydration mismatch（组件内使用 `localStorage`、`createPortal` 等浏览器 API）。
-
-### 根布局
-
-- HTML `lang="zh"`
-- Inter 字体（Google Fonts，拉丁子集，CSS 变量 `--font-inter`）
-- Viewport：`width=device-width, initial-scale=1`，主题色 `#F03050`
-- 全局 `<Toaster />` 组件
-- `<Analytics />` (Vercel)
-
----
-
-## 12. UI 设计规范
-
-### 主题
-
-Apple 风格设计语言，使用 CSS 变量定义 HSL 色值，支持明/暗模式。
-
-### 圆角
-
-| Token | 值 |
-|-------|-----|
-| `apple` | 12px |
-| `apple-sm` | 8px |
-| `apple-lg` | 16px |
-| `apple-xl` | 20px |
-
-### 阴影
-
-| Token | 值 |
-|-------|-----|
-| `shadow-apple` | `0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04)` |
-| `shadow-apple-lg` | `0 10px 40px rgba(0,0,0,.08), 0 2px 12px rgba(0,0,0,.04)` |
-| `shadow-apple-button` | `0 1px 2px rgba(0,0,0,.06), 0 0 1px rgba(0,0,0,.08)` |
-
-### 动画
-
-| 名称 | 效果 |
-|------|------|
-| `fadeIn` | 透明度 0→1 + 上移 4px，0.5s |
-| `slideUp` | 透明度 0→1 + 上移 20px，0.6s |
-| `bounceSubtle` | 微弹跳 1→1.02→0.98→1，0.2s |
-
-### 页面布局
-
-单页应用，居中卡片布局：
-
-- 最大宽度 `max-w-3xl` (48rem)
-- 卡片内使用 Radix Tabs 切换三个功能
-- 三栏等宽 Tab 按钮（VSCode 插件 | Chrome 拓展 | Docker 镜像）
-- 未激活的 Tab 内容使用 CSS `hidden` 隐藏（保留组件状态）
-
-### Portal 组件
-
-`InputWithHistory` 和 `SearchableSelect` 的下拉菜单通过 `createPortal` 渲染到 `document.body`，使用 `mounted` 状态延迟渲染以避免 SSR hydration mismatch。
-
-下拉位置通过 `getBoundingClientRect()` 计算，监听 `scroll`（capture + passive）和 `resize` 事件实时更新。点击外部区域关闭下拉。
-
----
-
-## 13. 站点配置常量
-
-```typescript
-const site = {
-  name: "lixian.online",
-  domain: "lixian.online",
-  url: "https://lixian.online",
-  description: "在线搞定离线包",
-  keywords: ["开发工具", "下载", "VSCode", "插件", "开发者工具"],
-  author: "lixian.online",
-  userAgent: "Mozilla/5.0 (compatible; lixian.online/1.0)",
-  github: "https://github.com/liaoguoyin/offdown",
-};
-```
-
----
-
-## 14. 验收标准
-
-### 功能验收
-
-#### Docker 镜像下载
-
-- [ ] 输入 `nginx:latest`、`library/nginx`、`docker.io/library/nginx:alpine` 等多种格式均能正确解析
-- [ ] 标签列表正确加载，用户可切换选择
-- [ ] 镜像不存在时展示搜索候选列表，点击候选可自动填充
-- [ ] 多架构 manifest 自动选择 `amd64/linux` 平台
-- [ ] 下载过程显示实时进度（当前层/总层数、已下载/总大小）
-- [ ] 生成的 `.tar` 文件能通过 `docker load` 成功导入，导入后 `docker run` 能正常启动容器
-- [ ] `diff_ids` 与解压后 layer 数据的 SHA-256 哈希一致，`docker load` 校验通过
-
-#### VSCode 插件下载
-
-- [ ] 粘贴 Marketplace URL 能解析出 publisher 和 extension 名称（含 publisher 带点号的情况）
-- [ ] 版本列表正确加载，切换版本自动更新下载链接
-- [ ] 下载的 `.vsix` 文件能在 VS Code 中通过 "Install from VSIX" 安装
-
-#### Chrome 扩展下载
-
-- [ ] 支持三种输入方式：扩展名称搜索、32 位 ID 直接输入、Web Store URL 粘贴
-- [ ] 搜索防抖正常，结果去重且最多 10 条
-- [ ] 解析后显示扩展真实名称和描述
-- [ ] CRX 文件正常下载，下载过程显示实时进度，支持取消
-- [ ] CRX → ZIP 转换正确（CRX3 和 CRX2 格式均支持）
-- [ ] 转换后的 ZIP 能在 Chrome 开发者模式加载
-- [ ] `both` 模式下 ZIP 转换失败时降级为仅提供 CRX
-
-### 通用验收
-
-- [ ] 三个功能的历史记录正确保存（localStorage）、展示、去重，上限 10 条
-- [ ] Toast 通知在成功和错误场景正确触发，5 秒后自动消失
-- [ ] Portal 下拉菜单定位准确，跟随滚动和窗口缩放更新，点击外部关闭
-- [ ] Blob URL 在组件卸载和重新下载时正确释放，无内存泄漏
-- [ ] 首屏仅加载当前 Tab 对应的组件代码（dynamic import）
-- [ ] Docker 层下载使用流式传输，服务端不缓冲完整文件
-
-### 规划中
-
-- [ ] Docker 下载支持用户选择目标平台（arm64 / amd64）
-- [ ] Docker 多层并行下载
-- [ ] 下载断点续传
-- [ ] 错误处理规范化：所有 API 路由统一错误响应格式，前端统一错误展示
-- [ ] 共享 UI 组件（InputWithHistory、SearchableSelect）的键盘导航支持
-- [ ] 移动端响应式布局优化
+- 上游请求头：
+  - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
+  - `Accept: application/json`
+- 成功：返回上游 JSON，并带 `Cache-Control: public, max-age=300`
+- 客户端使用字段：
+  - `repo_name`
+  - `short_description`
+  - `star_count`
+  - `pull_count`
+- `repo_name` 若不含 `/`，客户端 MUST 将其解释为 `library/{repo_name}`。
+- 失败：
+  - 缺少 `q`：400
+  - 上游非 2xx：透传状态码
+  - 本地异常：500
+- 当前实现还 MUST 提供 `OPTIONS` 响应和基本 CORS 头。
+
+## 8. 状态模型
+
+每个功能标签页均为独立状态机：
+
+- `idle`
+- `resolving`
+- `ready`
+- `downloading`
+- `completed`
+- `error`
+
+实现不要求显式使用该枚举，但用户体验 MUST 与下列语义一致：
+
+- 提交解析时进入“解析中”
+- 可下载资源准备好后进入“可下载”
+- 二进制传输时进入“下载中”
+- 成功后进入“已完成”
+- 失败后进入“错误”
+
+Chrome 下载还额外包含中间态 `converting`；Docker 下载进度按层推进。
+
+## 9. 一致性与验收
+
+符合本规格的实现，至少 MUST 通过以下验收：
+
+1. 输入一个合法 VSCode Marketplace URL，可以列出版本，并下载任意选中版本的 `.vsix`。
+2. 输入一个合法 Chrome 扩展 ID，可以得到扩展信息，并下载 `.crx`；请求 ZIP 时可得到 `.zip` 或在转换失败时回退到 `.crx`。
+3. 输入一个公开 Docker 镜像名，可以选择标签，下载 `.tar`，并被 `docker load` 成功导入。
+4. Docker 多架构镜像会自动选择 `linux/amd64`。
+5. Docker 层下载在服务端不做整包缓冲。
+6. 最近输入历史在刷新后仍存在，并遵守“最多 10 条、去重、头插”规则。
+
+## 10. 非规范性说明
+
+以下内容故意不进入规格：
+
+- 源码目录布局
+- 具体框架版本
+- 组件库与 CSS 方案
+- 动画、圆角、阴影等视觉实现
+- 构建脚本名称
+
+只要满足本文定义的用户行为、API 契约、二进制处理规则和边界条件，即视为功能等价实现。

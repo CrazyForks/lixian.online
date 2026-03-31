@@ -64,18 +64,7 @@ src/
 Design specs and API docs are in [`docs/`](./docs/):
 
 - [**spec.md**](./docs/spec.md) — Design spec (architecture, data flow, binary formats, types)
-- [**api.md**](./docs/api.md) — API reference (all routes + upstream API details)
 - [**api.http**](./docs/api.http) — REST Client test file
-
-## Versioning
-
-The footer version is read from `package.json`. Hover to see build time and commit hash.
-
-```bash
-npm run version:patch   # 0.2.0 → 0.2.1
-npm run version:minor   # 0.2.0 → 0.3.0
-npm run version:major   # 0.2.0 → 1.0.0
-```
 
 ## License
 
