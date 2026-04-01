@@ -324,7 +324,7 @@ Chrome 标签页输入框 MUST 接受以下任一形式：
 
 - 层下载 MUST 串行，而不是并行。
 - 进度 MUST 至少体现“当前第几层 / 总层数”。
-- 输出文件名 MUST 为 `{repository}-{tag}.tar`。
+- 输出文件名 MUST 为 `{namespace}-{repository}-{tag}.tar`。
 
 #### 6.3.4 Manifest 选择规则
 
@@ -354,7 +354,10 @@ Chrome 标签页输入框 MUST 接受以下任一形式：
 
 其中：
 
-- `layer.tar` MUST 是该层 gzip 解压后的原始 tar 数据，不可继续保留 gzip。
+- `layer.tar` MUST 是解压后的原始 tar 数据。解压策略基于 magic bytes 检测：
+  - `0x1F 0x8B` → gzip，使用 `DecompressionStream("gzip")` 解压。
+  - `0x28 0xB5 0x2F 0xFD` → zstd，浏览器原生不支持，MUST 报错提示用户尝试其他标签。
+  - 其他 → 视为未压缩数据，直接使用。
 - `rootfs.diff_ids` MUST 使用“解压后 tar 数据”的 SHA-256，格式 `sha256:{hex}`。
 - `manifest.json` 的 `RepoTags` MUST 包含单个条目 `{namespace}/{repository}:{tag}`。
 - 若 `namespace` 为空，仍按当前实现使用默认 `library`。
@@ -549,7 +552,7 @@ GET https://registry-1.docker.io/v2/{namespace}/{repository}/manifests/{tag}
 
 - 请求头：
   - `Authorization: Bearer {token}`
-  - `Accept: application/vnd.docker.distribution.manifest.v2+json`
+  - `Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json`
   - `User-Agent: Mozilla/5.0 (compatible; lixian.online/1.0)`
 - 若返回 manifest list / OCI index，则 MUST 再次按选中的 digest 请求具体 manifest。
 - 成功响应最少包含：

@@ -5,12 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # Dev server (NODE_OPTIONS='--inspect' next dev)
-npm run build    # Production build
-npm run lint     # ESLint
+pnpm dev         # Dev server (NODE_OPTIONS='--inspect' next dev)
+pnpm build       # Production build
+pnpm lint        # ESLint
+pnpm test:e2e    # Playwright E2E (runs pnpm build first)
 ```
-
-No test suite configured.
 
 ## Stack
 
@@ -29,8 +28,9 @@ Next.js 16 + React 19 + TypeScript, Tailwind CSS v4 + Radix UI, Axios for HTTP. 
 **Docker download flow:**
 1. User inputs image name → `DockerService.extractImageInfo()` parses it
 2. Fetch tags via `/api/docker/tags`
-3. On download: auth token (`/api/docker/auth`) → manifest (`/api/docker/manifest`) → layers (`/api/docker/layer` per layer)
-4. `TarBuilder` (`src/features/docker/utils/tarBuilder.ts`) assembles layers into a `docker load`-compatible TAR and serves it as a blob URL download
+3. On download: auth token (`/api/docker/auth`) → manifest (`/api/docker/manifest`, handles manifest list / OCI index by selecting `linux/amd64`) → layers (`/api/docker/layer` per layer)
+4. Each layer is decompressed based on magic bytes (gzip → `DecompressionStream`, uncompressed → passthrough, zstd → error), then SHA-256 hashed for `diff_ids`
+5. `TarBuilder` (`src/features/docker/utils/tarBuilder.ts`) assembles layers into a `docker load`-compatible TAR and serves it as a blob URL download
 
 **VSCode flow:** Parse marketplace URL → query versions via `/api/vscode/query` proxy → build a direct download URL pointing to `/_apis/public/gallery/publishers/.../vspackage` (final download is direct, not proxied)
 
