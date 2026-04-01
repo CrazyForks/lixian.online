@@ -24,19 +24,22 @@ Next.js 16 + React 19 + TypeScript, Tailwind CSS v4 + Radix UI, Axios
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Development
-npm run dev
+pnpm dev
 
 # Build
-npm run build
+pnpm build
 
 # Production
-npm run start
+pnpm start
 
 # Lint
-npm run lint
+pnpm lint
+
+# E2E
+pnpm test:e2e
 ```
 
 ## Project Structure
@@ -63,8 +66,24 @@ src/
 
 Design specs and API docs are in [`docs/`](./docs/):
 
-- [**spec.md**](./docs/spec.md) — Design spec (architecture, data flow, binary formats, types)
-- [**api.http**](./docs/api.http) — REST Client test file
+- [**spec.md**](./docs/spec.md) — The canonical implementation spec
+
+## E2E Testing
+
+The project uses Playwright for browser-level E2E with a mock-upstream strategy:
+
+- Run the real Next.js app
+- Mock same-origin `/api/*` routes inside tests
+- Cover real UI behavior, state transitions, Blob download links, and localStorage
+- Avoid flaky dependence on third-party networks
+
+Common commands:
+
+```bash
+pnpm test:e2e
+pnpm test:e2e:headed
+pnpm test:e2e:ui
+```
 
 ## License
 

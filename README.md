@@ -24,19 +24,22 @@ Next.js 16 + React 19 + TypeScript, Tailwind CSS v4 + Radix UI, Axios
 
 ```bash
 # 安装依赖
-npm install
+pnpm install
 
 # 开发
-npm run dev
+pnpm dev
 
 # 构建
-npm run build
+pnpm build
 
 # 生产启动
-npm run start
+pnpm start
 
 # Lint
-npm run lint
+pnpm lint
+
+# E2E
+pnpm test:e2e
 ```
 
 ## 项目结构
@@ -63,8 +66,24 @@ src/
 
 详细的设计规格和接口文档见 [`docs/`](./docs/)：
 
-- [**spec.md**](./docs/spec.md) — 设计规格书（架构、数据流、二进制格式、类型定义）
-- [**api.http**](./docs/api.http) — REST Client 测试文件
+- [**spec.md**](./docs/spec.md) — 项目的唯一权威规格
+
+## E2E 测试
+
+项目使用 Playwright 做浏览器端 E2E，策略是：
+
+- 启动真实的 Next.js 应用
+- 在测试中 mock 同源 `/api/*` 接口
+- 覆盖真实 UI、状态流转、Blob 下载链接和 localStorage 行为
+- 避免直接依赖第三方网络，降低 flaky
+
+常用命令：
+
+```bash
+pnpm test:e2e
+pnpm test:e2e:headed
+pnpm test:e2e:ui
+```
 
 ## License
 
