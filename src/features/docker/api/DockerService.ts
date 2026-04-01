@@ -206,7 +206,7 @@ class DockerService {
       onProgress(downloaded);
     }
 
-    return new Blob(chunks);
+    return new Blob(chunks as BlobPart[]);
   }
 
   async generateDockerLoadTar(manifest: DockerManifest, layers: Blob[], imageInfo: DockerImageInfo): Promise<Blob> {
@@ -362,7 +362,7 @@ class DockerService {
       result = raw;
     }
 
-    const hashBuf = await crypto.subtle.digest('SHA-256', result);
+    const hashBuf = await crypto.subtle.digest('SHA-256', result as ArrayBufferView<ArrayBuffer>);
     const sha256 = 'sha256:' + Array.from(new Uint8Array(hashBuf))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
