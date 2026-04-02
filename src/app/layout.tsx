@@ -1,15 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/shared/ui/toaster";
 import { Analytics } from "@vercel/analytics/react";
 import { site } from "@/shared/lib/site";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -30,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh" className={`${inter.variable} antialiased`}>
+    <html lang="zh" className="antialiased">
       <body className="font-sans">
         <div className="min-h-screen bg-background text-foreground">
           {children}

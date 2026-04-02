@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Blocks, Globe, Container, Github } from "lucide-react";
@@ -41,9 +42,11 @@ export default function Home() {
         <div className="text-center mb-8 md:mb-12 animate-fade-in">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-2 md:mb-3 tracking-tight flex items-baseline justify-center gap-0.5 sm:gap-1">
             <span>Lixian</span>
-            <img
+            <Image
               src="/favicon.ico"
               alt=""
+              width={16}
+              height={16}
               className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4"
             />
             <span>Online</span>
