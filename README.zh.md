@@ -1,6 +1,6 @@
 # Lixian.Online
 
-帮助开发者获取 VSCode 插件、Chrome 扩展和 Docker 镜像的离线安装包，并在受限网络环境下安装。
+帮助开发者获取 VSCode 插件、Chrome 扩展、Docker 镜像和 Microsoft Store 应用的离线安装资源，并在受限网络环境下安装。
 
 **在线体验：** [lixian.online](https://lixian.online)
 
@@ -15,6 +15,7 @@
 | VSCode 插件 | Marketplace 页面 URL | `.vsix` 离线安装包直链 |
 | Chrome 扩展 | 扩展名称 / 32 位 ID | `.crx` + `.zip` 文件 |
 | Docker 镜像 | 镜像名称（如 `nginx:latest`） | `docker load` 兼容的 `.tar` 文件 |
+| Microsoft Store | URL / ProductId / PackageFamilyName / CategoryId | 可离线下载安装包文件                  |
 
 所有文件下载均在浏览器端完成，服务端仅作 API 代理（绕 CORS）。
 
@@ -49,13 +50,14 @@ pnpm test:e2e
 ```
 src/
 ├── app/
-│   ├── api/                    # API 代理路由（Docker / VSCode / Chrome）
+│   ├── api/                    # API 代理路由（Docker / VSCode / Chrome / MSStore）
 │   ├── layout.tsx              # 根布局
 │   └── page.tsx                # 首页
 ├── features/                   # 按功能拆分
 │   ├── docker/                 # Docker 镜像下载
 │   ├── vscode/                 # VSCode 插件下载
-│   └── chrome/                 # Chrome 扩展下载
+│   ├── chrome/                 # Chrome 扩展下载
+│   └── msstore/                # Microsoft Store 应用下载
 │       ├── api/                # Service 服务类
 │       ├── hooks/              # React Hook（状态 + 流程编排）
 │       ├── components/         # UI 组件

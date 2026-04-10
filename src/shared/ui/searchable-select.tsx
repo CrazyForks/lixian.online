@@ -5,9 +5,15 @@ import { createPortal } from "react-dom";
 import { cn } from "@/shared/lib/util";
 import { ChevronDown, Search } from "lucide-react";
 
+export interface SearchableSelectOption {
+  value: string;
+  label: string;
+  keywords?: string[];
+}
+
 interface SearchableSelectProps {
   value: string;
-  options: string[];
+  options: Array<string | SearchableSelectOption>;
   placeholder?: string;
   onValueChange: (value: string) => void;
 }
@@ -28,14 +34,41 @@ export function SearchableSelect({
 
   React.useEffect(() => setMounted(true), []);
 
-  const MAX_VISIBLE = 50;
+  const normalizedOptions = React.useMemo(
+    () =>
+      options.map((option) => {
+        if (typeof option === "string") {
+          return {
+            value: option,
+            label: option,
+            searchText: option.toLowerCase(),
+          };
+        }
+        const keywordText = (option.keywords ?? []).join(" ").toLowerCase();
+        return {
+          value: option.value,
+          label: option.label,
+          searchText: `${option.label} ${option.value} ${keywordText}`.toLowerCase(),
+        };
+      }),
+    [options],
+  );
+
+  const selectedLabel = React.useMemo(() => {
+    return (
+      normalizedOptions.find((option) => option.value === value)?.label ?? value
+    );
+  }, [normalizedOptions, value]);
+
+  const MAX_VISIBLE = 200;
 
   const filtered = React.useMemo(() => {
+    const keyword = search.trim().toLowerCase();
     const list = search
-      ? options.filter((o) => o.toLowerCase().includes(search.toLowerCase()))
-      : options;
+      ? normalizedOptions.filter((option) => option.searchText.includes(keyword))
+      : normalizedOptions;
     return list.slice(0, MAX_VISIBLE);
-  }, [options, search]);
+  }, [normalizedOptions, search]);
 
   // Calculate dropdown position relative to viewport
   const updatePosition = React.useCallback(() => {
@@ -89,7 +122,7 @@ export function SearchableSelect({
       style={{ top: pos.top, left: pos.left, width: pos.width }}
       className="fixed z-[9999] rounded-apple border border-border bg-popover shadow-apple-lg overflow-hidden"
     >
-      {options.length > 6 && (
+      {normalizedOptions.length > 6 && (
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
           <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
           <input
@@ -111,17 +144,17 @@ export function SearchableSelect({
         ) : (
           filtered.map((option) => (
             <button
-              key={option}
+              key={option.value}
               type="button"
-              onClick={() => handleSelect(option)}
+              onClick={() => handleSelect(option.value)}
               className={cn(
                 "flex w-full items-center rounded-apple-sm px-3 py-2 text-sm transition-colors",
-                option === value
+                option.value === value
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-foreground hover:bg-secondary",
               )}
             >
-              {option}
+              {option.label}
             </button>
           ))
         )}
@@ -145,7 +178,7 @@ export function SearchableSelect({
         )}
       >
         <span className={cn(!value && "text-muted-foreground")}>
-          {value || placeholder}
+          {selectedLabel || placeholder}
         </span>
         <ChevronDown
           className={cn(
