@@ -4,13 +4,7 @@ export type MSStoreRequestType =
   | "PackageFamilyName"
   | "CategoryId";
 
-export interface MSStoreOption<T extends string> {
-  value: T;
-  label: string;
-}
-
 export interface MSStoreResolveParams {
-  type: MSStoreRequestType;
   query: string;
 }
 

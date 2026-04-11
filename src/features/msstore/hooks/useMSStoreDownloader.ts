@@ -1,30 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { msStoreService } from "../api/MSStoreService";
-import {
-  MSStoreRequestType,
-  MSStoreResolveResult,
-} from "../types";
+import { MSStoreResolveResult } from "../types";
 
 export function useMSStoreDownloader() {
-  const [requestType, setRequestType] = useState<MSStoreRequestType>("url");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<MSStoreResolveResult | null>(null);
 
-  const typeOptions = useMemo(() => msStoreService.getTypeOptions(), []);
-  const placeholder = useMemo(
-    () => msStoreService.getPlaceholder(requestType),
-    [requestType],
-  );
-  const examples = useMemo(
-    () => msStoreService.getExamples(requestType),
-    [requestType],
-  );
-
-  const onRequestTypeChange = useCallback((value: string) => {
-    setRequestType(value as MSStoreRequestType);
-    setResult(null);
-  }, []);
+  const placeholder = useMemo(() => msStoreService.getPlaceholder(), []);
+  const examples = useMemo(() => msStoreService.getExamples(), []);
 
   const onQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
@@ -42,27 +26,21 @@ export function useMSStoreDownloader() {
       setLoading(true);
 
       try {
-        const parsed = await msStoreService.resolve({
-          type: requestType,
-          query,
-        });
+        const parsed = await msStoreService.resolve({ query });
         setResult(parsed);
       } finally {
         setLoading(false);
       }
     },
-    [query, requestType],
+    [query],
   );
 
   return {
-    requestType,
     query,
     loading,
     result,
-    typeOptions,
     placeholder,
     examples,
-    onRequestTypeChange,
     onQueryChange,
     fillExample,
     handleSubmit,

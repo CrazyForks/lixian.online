@@ -1,18 +1,14 @@
 import { InputWithHistory } from "@/shared/ui/input-with-history";
 import { Button } from "@/shared/ui/button";
-import { SearchableSelect, SearchableSelectOption } from "@/shared/ui/searchable-select";
+import {
+  SearchableSelect,
+  SearchableSelectOption,
+} from "@/shared/ui/searchable-select";
 import { useToast } from "@/hooks/useToast";
 import { useHistory } from "@/hooks/useHistory";
 import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import { useMemo, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/select";
 import { Store, Download, Package, ExternalLink } from "lucide-react";
 import { useMSStoreDownloader } from "../hooks/useMSStoreDownloader";
 import { MSStoreDownloadFile } from "../types";
@@ -151,7 +147,12 @@ function toReadableOption(entry: FileOptionEntry): SearchableSelectOption {
   return {
     value: entry.file.name,
     label: `${parsed.component} · ${parsed.typeLabel} · ${parsed.architectureLabel} · v${parsed.version} · ${entry.file.size}`,
-    keywords: [parsed.component, parsed.version, parsed.architecture, parsed.extension],
+    keywords: [
+      parsed.component,
+      parsed.version,
+      parsed.architecture,
+      parsed.extension,
+    ],
   };
 }
 
@@ -159,14 +160,11 @@ export default function MSStoreDownloader() {
   const { toast } = useToast();
   const history = useHistory("history:msstore");
   const {
-    requestType,
     query,
     loading,
     result,
-    typeOptions,
     placeholder,
     examples,
-    onRequestTypeChange,
     onQueryChange,
     fillExample,
     handleSubmit,
@@ -184,7 +182,9 @@ export default function MSStoreDownloader() {
 
   const selectedFileName = useMemo(() => {
     if (fileEntries.length === 0) return "";
-    if (fileEntries.some((entry) => entry.file.name === selectedFileNameOverride)) {
+    if (
+      fileEntries.some((entry) => entry.file.name === selectedFileNameOverride)
+    ) {
       return selectedFileNameOverride;
     }
     return fileEntries[0].file.name;
@@ -192,7 +192,10 @@ export default function MSStoreDownloader() {
 
   const selectedFileEntry = useMemo(() => {
     if (fileEntries.length === 0) return null;
-    return fileEntries.find((entry) => entry.file.name === selectedFileName) ?? fileEntries[0];
+    return (
+      fileEntries.find((entry) => entry.file.name === selectedFileName) ??
+      fileEntries[0]
+    );
   }, [fileEntries, selectedFileName]);
   const selectedFile = selectedFileEntry?.file ?? null;
 
@@ -217,59 +220,40 @@ export default function MSStoreDownloader() {
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
       <div className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          输入要解析的内容或者直接访问
+          输入 MS 应用链接，或前往
           <a
-            href="https://store.rg-adguard.net/"
+            href="https://apps.microsoft.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"
           >
-            https://store.rg-adguard.net/
+            Microsoft Store
             <ExternalLink className="h-3 w-3" />
           </a>
         </p>
-
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="sm:w-44">
-            <Select value={requestType} onValueChange={onRequestTypeChange}>
-              <SelectTrigger data-testid="msstore-type" className="h-12">
-                <SelectValue placeholder="选择查询类型" />
-              </SelectTrigger>
-              <SelectContent>
-                {typeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex-1">
-            <InputWithHistory
-              data-testid="msstore-input"
-              className="h-12"
-              placeholder={placeholder}
-              value={query}
-              onChange={onQueryChange}
-              history={history.items}
-              onSelectHistory={(value) =>
-                onQueryChange({
-                  target: { value },
-                } as React.ChangeEvent<HTMLInputElement>)
-              }
-            />
-          </div>
-        </div>
+        <InputWithHistory
+          data-testid="msstore-input"
+          className="h-12"
+          placeholder={placeholder}
+          value={query}
+          onChange={onQueryChange}
+          history={history.items}
+          onSelectHistory={(value) =>
+            onQueryChange({
+              target: { value },
+            } as React.ChangeEvent<HTMLInputElement>)
+          }
+        />
 
         <div className="flex flex-wrap gap-2 mt-1">
           {examples.map((example) => (
             <button
-              key={example}
+              key={example.value}
               type="button"
-              onClick={() => fillExample(example)}
+              onClick={() => fillExample(example.value)}
               className="text-xs px-2.5 py-1 rounded-full bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
-              试试 {example.length > 24 ? `${example.slice(0, 24)}...` : example}
+              试试 {example.label}
             </button>
           ))}
         </div>
@@ -315,12 +299,13 @@ export default function MSStoreDownloader() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground break-all">
-                            {selectedFileEntry?.parsed?.component ?? selectedFile.name}
+                            {selectedFileEntry?.parsed?.component ??
+                              selectedFile.name}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5 break-all">
-                            {(selectedFileEntry?.parsed
+                            {selectedFileEntry?.parsed
                               ? `${selectedFileEntry.parsed.typeLabel} · ${selectedFileEntry.parsed.architectureLabel} · v${selectedFileEntry.parsed.version}`
-                              : "安装包")}{" "}
+                              : "安装包"}{" "}
                             · {selectedFile.size}
                           </p>
                           <p className="text-[11px] text-muted-foreground/90 mt-1 break-all">
@@ -338,7 +323,12 @@ export default function MSStoreDownloader() {
                         className="flex-shrink-0 self-end sm:self-auto"
                         data-testid="msstore-download-link"
                       >
-                        <Button type="button" size="sm" variant="outline" className="gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                        >
                           <Download className="h-3.5 w-3.5" />
                           下载
                         </Button>

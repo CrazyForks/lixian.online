@@ -1,92 +1,82 @@
 import {
-  MSStoreOption,
   MSStoreRequestType,
   MSStoreResolveParams,
   MSStoreResolveResult,
 } from "../types";
 import { get } from "@/shared/lib/http";
 
-const TYPE_OPTIONS: MSStoreOption<MSStoreRequestType>[] = [
-  { value: "url", label: "URL 链接" },
-  { value: "ProductId", label: "ProductId" },
-  { value: "PackageFamilyName", label: "PackageFamilyName" },
-  { value: "CategoryId", label: "CategoryId" },
+const PLACEHOLDER =
+  "Microsoft Store 链接、ProductId、PackageFamilyName 或 CategoryId";
+
+export interface MSStoreExample {
+  label: string;
+  value: string;
+}
+
+const EXAMPLES: MSStoreExample[] = [
+  {
+    label: "Windows Terminal",
+    value: "https://apps.microsoft.com/detail/9n0dx20hk701",
+  },
+  {
+    label: "Python 3.13",
+    value: "https://apps.microsoft.com/detail/9pnrbtzxmb4z",
+  },
 ];
 
-const PLACEHOLDERS: Record<MSStoreRequestType, string> = {
-  url: "https://apps.microsoft.com/detail/9n0dx20hk701?hl=zh-CN&gl=CN",
-  ProductId: "9N0DX20HK701",
-  PackageFamilyName: "Microsoft.WindowsTerminal_8wekyb3d8bbwe",
-  CategoryId: "d58c3a5f-ca63-4435-842c-7814b5ff91b7",
-};
-
-const EXAMPLES: Record<MSStoreRequestType, string[]> = {
-  url: ["https://apps.microsoft.com/detail/9n0dx20hk701?hl=zh-CN&gl=CN"],
-  ProductId: ["9N0DX20HK701", "9NKSQGP7F2NH"],
-  PackageFamilyName: ["Microsoft.WindowsTerminal_8wekyb3d8bbwe"],
-  CategoryId: ["d58c3a5f-ca63-4435-842c-7814b5ff91b7"],
-};
+const PRODUCT_ID_PATTERN = /^[A-Za-z0-9]{12}$/;
+const PACKAGE_FAMILY_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*_[A-Za-z0-9]+$/;
+const CATEGORY_ID_PATTERN =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 class MSStoreService {
   private readonly market = "CN";
 
   private readonly language = "zh-cn";
 
-  getTypeOptions(): MSStoreOption<MSStoreRequestType>[] {
-    return TYPE_OPTIONS;
+  getPlaceholder(): string {
+    return PLACEHOLDER;
   }
 
-  getPlaceholder(type: MSStoreRequestType): string {
-    return PLACEHOLDERS[type];
+  getExamples(): MSStoreExample[] {
+    return EXAMPLES;
   }
 
-  getExamples(type: MSStoreRequestType): string[] {
-    return EXAMPLES[type];
-  }
+  detectRequestType(query: string): MSStoreRequestType | null {
+    const value = query.trim();
+    if (!value) return null;
 
-  validateParams(params: MSStoreResolveParams): void {
-    const value = params.query.trim();
-    if (!value) {
-      throw new Error("请输入要解析的内容");
+    // URL: explicit scheme or well-known Microsoft Store host
+    if (/^https?:\/\//i.test(value)) return "url";
+    if (
+      /(^|\/)(apps\.microsoft\.com|microsoft\.com\/[^\s]*store)/i.test(value)
+    ) {
+      return "url";
     }
 
-    switch (params.type) {
-      case "url":
-        return;
-      case "ProductId":
-        if (!/^[A-Za-z0-9]{12}$/.test(value)) {
-          throw new Error("ProductId 格式有误，示例：9N0DX20HK701");
-        }
-        return;
-      case "PackageFamilyName":
-        if (!/^[A-Za-z0-9][A-Za-z0-9._-]*_[A-Za-z0-9]+$/.test(value)) {
-          throw new Error(
-            "PackageFamilyName 格式有误，示例：Microsoft.WindowsTerminal_8wekyb3d8bbwe",
-          );
-        }
-        return;
-      case "CategoryId":
-        if (
-          !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-            value,
-          )
-        ) {
-          throw new Error(
-            "CategoryId 格式有误，示例：d58c3a5f-ca63-4435-842c-7814b5ff91b7",
-          );
-        }
-        return;
-      default:
-        throw new Error("不支持的请求类型");
-    }
+    if (CATEGORY_ID_PATTERN.test(value)) return "CategoryId";
+    if (PACKAGE_FAMILY_NAME_PATTERN.test(value)) return "PackageFamilyName";
+    if (PRODUCT_ID_PATTERN.test(value)) return "ProductId";
+
+    return null;
   }
 
   async resolve(params: MSStoreResolveParams): Promise<MSStoreResolveResult> {
-    this.validateParams(params);
+    const query = params.query.trim();
+    if (!query) {
+      throw new Error("请输入要解析的内容");
+    }
+
+    const type = this.detectRequestType(query);
+    if (!type) {
+      throw new Error(
+        "无法识别输入类型，请输入 Microsoft Store 链接、ProductId（12 位）、PackageFamilyName 或 CategoryId（UUID）",
+      );
+    }
 
     const response = await get("/api/msstore/resolve", {
-      type: params.type,
-      query: params.query.trim(),
+      type,
+      query,
       market: this.market,
       language: this.language,
     });
