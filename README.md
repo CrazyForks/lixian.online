@@ -1,6 +1,6 @@
 # Lixian.Online
 
-Helps developers get offline installers for VSCode extensions, Chrome extensions, and Docker images, and install them in restricted network environments.
+Helps developers get offline resources for VSCode extensions, Chrome extensions, Docker images, and Microsoft Store apps in restricted network environments.
 
 **Live demo:** [lixian.online](https://lixian.online)
 
@@ -15,8 +15,9 @@ Helps developers get offline installers for VSCode extensions, Chrome extensions
 | VSCode Extensions | Marketplace page URL | Direct `.vsix` download link |
 | Chrome Extensions | Extension name / 32-char ID | `.crx` + `.zip` files |
 | Docker Images | Image name (e.g. `nginx:latest`) | `docker load` compatible `.tar` file |
+| Microsoft Store | URL / ProductId / PackageFamilyName / CategoryId | Offline-installable package files |
 
-All downloads happen entirely in the browser. The server only proxies API requests to bypass CORS.
+All downloads happen in the browser. The server only proxies API requests to bypass CORS.
 
 ## Tech Stack
 
@@ -49,13 +50,14 @@ pnpm test:e2e
 ```
 src/
 ├── app/
-│   ├── api/                    # API proxy routes (Docker / VSCode / Chrome)
+│   ├── api/                    # API proxy routes (Docker / VSCode / Chrome / MSStore)
 │   ├── layout.tsx              # Root layout
 │   └── page.tsx                # Home page
 ├── features/                   # Feature-based modules
 │   ├── docker/                 # Docker image download
 │   ├── vscode/                 # VSCode extension download
-│   └── chrome/                 # Chrome extension download
+│   ├── chrome/                 # Chrome extension download
+│   └── msstore/                # Microsoft Store app download
 │       ├── api/                # Service class
 │       ├── hooks/              # React Hook (state + orchestration)
 │       ├── components/         # UI components
@@ -86,6 +88,10 @@ pnpm test:e2e
 pnpm test:e2e:headed
 pnpm test:e2e:ui
 ```
+
+## Acknowledgements
+
+- Microsoft Store package resolution relies on the public service provided by [store.rg-adguard.net](https://store.rg-adguard.net/). Huge thanks to them — the MSStore download feature would not exist without it.
 
 ## License
 

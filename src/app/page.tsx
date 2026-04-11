@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Card, CardContent } from "@/shared/ui/card";
-import { Blocks, Globe, Container, Github } from "lucide-react";
+import { Blocks, Globe, Container, Github, Store } from "lucide-react";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 
 const DynamicFallback = () => (
@@ -24,6 +24,10 @@ const ChromeDownloader = dynamic(
 );
 const DockerDownloader = dynamic(
   () => import("@/features/docker/components/DockerDownloader"),
+  { ssr: false, loading: DynamicFallback },
+);
+const MSStoreDownloader = dynamic(
+  () => import("@/features/msstore/components/MSStoreDownloader"),
   { ssr: false, loading: DynamicFallback },
 );
 import { site } from "@/shared/lib/site";
@@ -65,7 +69,7 @@ export default function Home() {
                 onValueChange={setActiveTab}
                 className="w-full"
               >
-                <TabsList className="grid w-full grid-cols-3 bg-secondary/60 backdrop-blur-sm rounded-apple p-1 border border-border/40 h-10 sm:h-12">
+                <TabsList className="grid w-full grid-cols-4 bg-secondary/60 backdrop-blur-sm rounded-apple p-1 border border-border/40 h-10 sm:h-12">
                   <TabsTrigger
                     value="vscode"
                     data-testid="tab-vscode"
@@ -91,6 +95,15 @@ export default function Home() {
                     <Container className="h-4 w-4 flex-shrink-0" />
                     Docker 镜像
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="msstore"
+                    data-testid="tab-msstore"
+                    className="rounded-apple-sm font-medium text-xs sm:text-sm py-2 sm:py-2.5 px-2 sm:px-4 data-[state=active]:bg-background data-[state=active]:shadow-apple-button data-[state=active]:text-foreground transition-all duration-200 gap-1.5 sm:gap-2"
+                  >
+                    <Store className="h-4 w-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">Microsoft 商店</span>
+                    <span className="sm:hidden">MS商店</span>
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -105,6 +118,9 @@ export default function Home() {
               </div>
               <div className={activeTab !== "docker" ? "hidden" : undefined}>
                 <DockerDownloader />
+              </div>
+              <div className={activeTab !== "msstore" ? "hidden" : undefined}>
+                <MSStoreDownloader />
               </div>
             </div>
           </CardContent>
