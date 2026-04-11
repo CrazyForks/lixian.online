@@ -30,9 +30,12 @@ const CATEGORY_ID_PATTERN =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 class MSStoreService {
-  private readonly market = "CN";
+  // Default to US / en-us because the global Microsoft Store catalog has the
+  // widest coverage on this market. CN market frequently returns empty results
+  // for apps that are only published internationally.
+  private readonly market = "US";
 
-  private readonly language = "zh-cn";
+  private readonly language = "en-us";
 
   getPlaceholder(): string {
     return PLACEHOLDER;

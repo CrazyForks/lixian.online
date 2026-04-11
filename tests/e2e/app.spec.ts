@@ -124,6 +124,8 @@ test("MSStore flow renders a download link from a store URL", async ({
   const params = new URL(request.url()).searchParams;
   expect(params.get("type")).toBe("url");
   expect(params.get("query")).toBe(msstoreProductUrl);
+  expect(params.get("market")).toBe("US");
+  expect(params.get("language")).toBe("en-us");
 
   await expect(page.getByTestId("msstore-download-link")).toHaveAttribute(
     "href",

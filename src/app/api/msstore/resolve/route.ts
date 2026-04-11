@@ -235,8 +235,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = (searchParams.get("type") ?? "url") as RequestType;
     const query = searchParams.get("query") ?? "";
-    const market = (searchParams.get("market") ?? "CN").toUpperCase();
-    const language = (searchParams.get("language") ?? "zh-cn").toLowerCase();
+    // Default to US / en-us: the global catalog has the widest coverage and
+    // avoids empty results for apps that are not published in the CN market.
+    const market = (searchParams.get("market") ?? "US").toUpperCase();
+    const language = (searchParams.get("language") ?? "en-us").toLowerCase();
     const ring = (searchParams.get("ring") ?? "RP") as StoreRing;
 
     if (!/^[A-Z]{2}$/.test(market)) {
