@@ -7,13 +7,13 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import {
   Download,
-  Container,
   Info,
   Archive,
   Search,
   ExternalLink,
   Layers,
 } from "lucide-react";
+import { DockerIcon } from "@/shared/ui/icons";
 import { useDockerDownloader } from "../hooks/useDockerDownloader";
 import { dockerService } from "../api/DockerService";
 
@@ -25,7 +25,12 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-export default function DockerDownloader() {
+interface Props {
+  defaultValue?: string;
+  onQueryChange?: (q: string) => void;
+}
+
+export default function DockerDownloader({ defaultValue, onQueryChange }: Props) {
   const { toast } = useToast();
   const history = useHistory("history:docker");
   const {
@@ -43,12 +48,13 @@ export default function DockerDownloader() {
     onTagChange,
     handleSubmit,
     handleDownload,
-  } = useDockerDownloader();
+  } = useDockerDownloader(defaultValue);
 
   const onSubmit = async (e: React.FormEvent) => {
     try {
       await handleSubmit(e);
       history.add(imageUrl);
+      onQueryChange?.(imageUrl);
       toast({
         title: "解析成功",
         description: "已解析镜像信息",
@@ -144,7 +150,7 @@ export default function DockerDownloader() {
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            <Container className="h-4 w-4" />
+            <DockerIcon className="h-4 w-4" />
             解析镜像信息
           </span>
         )}

@@ -5,8 +5,8 @@ import { get } from "@/shared/lib/http";
 
 const IMAGE_NOT_FOUND_MESSAGE = "未找到对应镜像，请检查名称或从候选镜像中选择";
 
-export function useDockerDownloader() {
-  const [imageUrl, setImageUrl] = useState("");
+export function useDockerDownloader(initialValue?: string) {
+  const [imageUrl, setImageUrl] = useState(initialValue ?? "");
   const [tagList, setTagList] = useState<string[]>([]);
   const [imageInfo, setImageInfo] = useState<DockerImageInfo | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<DockerDownloadProgress | null>(null);

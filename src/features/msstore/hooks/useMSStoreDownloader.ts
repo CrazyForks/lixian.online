@@ -2,8 +2,8 @@ import { useCallback, useMemo, useState } from "react";
 import { msStoreService } from "../api/MSStoreService";
 import { MSStoreResolveResult } from "../types";
 
-export function useMSStoreDownloader() {
-  const [query, setQuery] = useState("");
+export function useMSStoreDownloader(initialValue?: string) {
+  const [query, setQuery] = useState(initialValue ?? "");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<MSStoreResolveResult | null>(null);
 

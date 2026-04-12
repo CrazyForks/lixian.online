@@ -9,7 +9,8 @@ import { useHistory } from "@/hooks/useHistory";
 import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import { useMemo, useState } from "react";
-import { Store, Download, Package, ExternalLink } from "lucide-react";
+import { Download, Package, ExternalLink } from "lucide-react";
+import { MicrosoftStoreIcon } from "@/shared/ui/icons";
 import { useMSStoreDownloader } from "../hooks/useMSStoreDownloader";
 import { MSStoreDownloadFile } from "../types";
 import { getMSStoreDownloadHref } from "../download";
@@ -157,7 +158,12 @@ function toReadableOption(entry: FileOptionEntry): SearchableSelectOption {
   };
 }
 
-export default function MSStoreDownloader() {
+interface MSStoreDownloaderProps {
+  defaultValue?: string;
+  onQueryChange?: (q: string) => void;
+}
+
+export default function MSStoreDownloader({ defaultValue, onQueryChange: onQuerySync }: MSStoreDownloaderProps) {
   const { toast } = useToast();
   const history = useHistory("history:msstore");
   const {
@@ -169,7 +175,7 @@ export default function MSStoreDownloader() {
     onQueryChange,
     fillExample,
     handleSubmit,
-  } = useMSStoreDownloader();
+  } = useMSStoreDownloader(defaultValue);
   const [selectedFileNameOverride, setSelectedFileNameOverride] = useState("");
 
   const fileEntries = useMemo(() => {
@@ -207,6 +213,7 @@ export default function MSStoreDownloader() {
     try {
       await handleSubmit(e);
       history.add(query);
+      onQuerySync?.(query);
       toast({
         title: "解析成功",
         description: "已获取产品信息和下载文件列表",
@@ -276,8 +283,8 @@ export default function MSStoreDownloader() {
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            <Store className="h-4 w-4" />
-            解析 Microsoft Store
+            <MicrosoftStoreIcon className="h-4 w-4" />
+            解析应用信息
           </span>
         )}
       </Button>

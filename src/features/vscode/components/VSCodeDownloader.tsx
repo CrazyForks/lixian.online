@@ -5,15 +5,16 @@ import { useToast } from "@/hooks/useToast";
 import { useHistory } from "@/hooks/useHistory";
 import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
-import {
-  Download,
-  Link as LinkIcon,
-  Package,
-  ExternalLink,
-} from "lucide-react";
+import { Download, Package, ExternalLink } from "lucide-react";
+import { VSCodeIcon } from "@/shared/ui/icons";
 import { useVSCodeDownloader } from "../hooks/useVSCodeDownloader";
 
-export default function VSCodeDownloader() {
+interface Props {
+  defaultValue?: string;
+  onQueryChange?: (q: string) => void;
+}
+
+export default function VSCodeDownloader({ defaultValue, onQueryChange }: Props) {
   const { toast } = useToast();
   const history = useHistory("history:vscode");
   const {
@@ -25,12 +26,13 @@ export default function VSCodeDownloader() {
     onUrlChange,
     onVersionChange,
     handleSubmit,
-  } = useVSCodeDownloader();
+  } = useVSCodeDownloader(defaultValue);
 
   const onSubmit = async (e: React.FormEvent) => {
     try {
       await handleSubmit(e);
       history.add(url);
+      onQueryChange?.(url);
       toast({
         title: "解析成功",
         description: "已选中最新版本",
@@ -113,8 +115,8 @@ export default function VSCodeDownloader() {
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            <LinkIcon className="h-4 w-4" />
-            解析插件链接
+            <VSCodeIcon className="h-4 w-4" />
+            解析插件信息
           </span>
         )}
       </Button>

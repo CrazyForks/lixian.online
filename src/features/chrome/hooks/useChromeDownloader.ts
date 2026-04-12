@@ -2,8 +2,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { chromeService } from "../api/ChromeService";
 import { ChromeExtensionInfo, ChromeDownloadProgress, ChromeSearchResult } from "../types";
 
-export function useChromeDownloader() {
-  const [extensionUrl, setExtensionUrl] = useState("");
+export function useChromeDownloader(initialValue?: string) {
+  const [extensionUrl, setExtensionUrl] = useState(initialValue ?? "");
   const [extensionInfo, setExtensionInfo] = useState<ChromeExtensionInfo | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<ChromeDownloadProgress | null>(null);
   const [downloadUrls, setDownloadUrls] = useState<{crx?: string; zip?: string}>({});

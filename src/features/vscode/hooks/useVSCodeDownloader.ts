@@ -2,14 +2,25 @@ import { useState, useCallback, useEffect } from "react";
 import { vscodeService } from "../api/VSCodeService";
 import { ExtensionInfo } from "../types";
 
-export function useVSCodeDownloader() {
-  const [url, setUrl] = useState("");
+export function useVSCodeDownloader(initialValue?: string) {
+  const [url, setUrl] = useState(initialValue ?? "");
   const [versionList, setVersionList] = useState<string[]>([]);
   const [extensionInfo, setExtensionInfo] = useState<ExtensionInfo | null>(
     null
   );
   const [downloadUrl, setDownloadUrl] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialValue) {
+      try {
+        setExtensionInfo({ ...vscodeService.extractExtensionInfo(initialValue), version: null });
+      } catch {
+        // invalid initial URL, ignore
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;

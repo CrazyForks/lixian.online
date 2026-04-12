@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import {
   Download,
-  Globe,
   FileArchive,
   Package,
   Info,
@@ -15,9 +14,15 @@ import {
   ExternalLink,
   X,
 } from "lucide-react";
+import { ChromeIcon } from "@/shared/ui/icons";
 import { useChromeDownloader } from "../hooks/useChromeDownloader";
 
-export default function ChromeDownloader() {
+interface Props {
+  defaultValue?: string;
+  onQueryChange?: (q: string) => void;
+}
+
+export default function ChromeDownloader({ defaultValue, onQueryChange }: Props) {
   const { toast } = useToast();
   const history = useHistory("history:chrome");
   const {
@@ -33,12 +38,13 @@ export default function ChromeDownloader() {
     handleSubmit,
     handleDownload,
     cancelDownload,
-  } = useChromeDownloader();
+  } = useChromeDownloader(defaultValue);
 
   const onSubmit = async (e: React.FormEvent) => {
     try {
       await handleSubmit(e);
       history.add(extensionUrl);
+      onQueryChange?.(extensionUrl);
       toast({
         title: "解析成功",
         description: "已解析扩展信息",
@@ -162,7 +168,7 @@ export default function ChromeDownloader() {
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            <Globe className="h-4 w-4" />
+            <ChromeIcon className="h-4 w-4" />
             解析扩展信息
           </span>
         )}
