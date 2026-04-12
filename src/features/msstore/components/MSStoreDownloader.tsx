@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { Store, Download, Package, ExternalLink } from "lucide-react";
 import { useMSStoreDownloader } from "../hooks/useMSStoreDownloader";
 import { MSStoreDownloadFile } from "../types";
+import { getMSStoreDownloadHref } from "../download";
 
 interface ParsedStoreFileName {
   component: string;
@@ -198,6 +199,9 @@ export default function MSStoreDownloader() {
     );
   }, [fileEntries, selectedFileName]);
   const selectedFile = selectedFileEntry?.file ?? null;
+  const selectedFileDownloadHref = selectedFile
+    ? getMSStoreDownloadHref(selectedFile)
+    : "";
 
   const onSubmit = async (e: React.FormEvent) => {
     try {
@@ -317,7 +321,7 @@ export default function MSStoreDownloader() {
                         </div>
                       </div>
                       <a
-                        href={selectedFile.url}
+                        href={selectedFileDownloadHref}
                         target="_blank"
                         rel="noreferrer"
                         className="flex-shrink-0 self-end sm:self-auto"

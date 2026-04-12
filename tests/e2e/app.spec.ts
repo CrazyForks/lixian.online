@@ -5,6 +5,8 @@ import {
   mockChromeApis,
   mockDockerApis,
   mockMsStoreApi,
+  msstoreFileName,
+  msstoreHttpDownloadUrl,
   mockVsCodeApi,
   msstoreDownloadUrl,
   msstoreProductId,
@@ -151,6 +153,29 @@ test("MSStore flow auto-detects a raw ProductId", async ({ page }) => {
   expect(params.get("query")).toBe(msstoreProductId);
 
   await expect(page.getByTestId("msstore-download-link")).toBeVisible();
+});
+
+test("MSStore flow proxies HTTP download links through same-origin API", async ({
+  page,
+}) => {
+  await mockMsStoreApi(page, { downloadUrl: msstoreHttpDownloadUrl });
+
+  await page.goto("/");
+  await page.getByTestId("tab-msstore").click();
+
+  await page.getByTestId("msstore-input").fill(msstoreProductUrl);
+  await page.getByTestId("msstore-submit").click();
+
+  const href = await page
+    .getByTestId("msstore-download-link")
+    .getAttribute("href");
+
+  expect(href).toBe(
+    `/api/msstore/download?${new URLSearchParams({
+      url: msstoreHttpDownloadUrl,
+      filename: msstoreFileName,
+    }).toString()}`,
+  );
 });
 
 test("MSStore flow rejects unrecognized input without calling the API", async ({

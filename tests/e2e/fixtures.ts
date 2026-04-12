@@ -12,6 +12,8 @@ export const msstoreFileName =
   "Microsoft.WindowsTerminal_1.22.11781.0_x64__8wekyb3d8bbwe.msixbundle";
 export const msstoreDownloadUrl =
   "https://tlu.dl.delivery.mp.microsoft.com/filestreamingservice/files/sample-msix";
+export const msstoreHttpDownloadUrl =
+  "http://tlu.dl.delivery.mp.microsoft.com/filestreamingservice/files/sample-msix";
 
 const emptyZipBuffer = Buffer.from(
   "504b0506000000000000000000000000000000000000",
@@ -123,7 +125,10 @@ export async function mockDockerApis(page: Page, options: MockDockerOptions = {}
   });
 }
 
-export async function mockMsStoreApi(page: Page) {
+export async function mockMsStoreApi(
+  page: Page,
+  options: { downloadUrl?: string } = {},
+) {
   await page.route("**/api/msstore/resolve**", async (route) => {
     await fulfillJson(route, {
       productId: msstoreProductId,
@@ -136,7 +141,7 @@ export async function mockMsStoreApi(page: Page) {
       files: [
         {
           name: msstoreFileName,
-          url: msstoreDownloadUrl,
+          url: options.downloadUrl ?? msstoreDownloadUrl,
           expires: "2026-04-12 00:00:00 UTC",
           sha1: "abc123def456",
           size: "12.3 MB",
