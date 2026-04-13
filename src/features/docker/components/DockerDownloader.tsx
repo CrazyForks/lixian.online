@@ -99,51 +99,49 @@ export default function DockerDownloader({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
-      <div className="">
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            输入镜像名，或前往{" "}
-            <a
-              href="https://hub.docker.com/search"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          输入镜像名，或前往{" "}
+          <a
+            href="https://hub.docker.com/search"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 text-primary hover:underline"
+          >
+            Docker Hub
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </p>
+        <InputWithHistory
+          data-testid="docker-input"
+          placeholder="nginx:latest 或 hub.docker.com/r/library/nginx"
+          value={imageUrl}
+          onChange={onImageUrlChange}
+          history={history.items}
+          onSelectHistory={(v) =>
+            onImageUrlChange({
+              target: { value: v },
+            } as React.ChangeEvent<HTMLInputElement>)
+          }
+        />
+        <div className="mt-1 flex flex-wrap gap-2">
+          {[
+            { label: "Nginx", value: "nginx:latest" },
+            { label: "Redis", value: "redis:alpine" },
+          ].map((example) => (
+            <button
+              key={example.label}
+              type="button"
+              onClick={() =>
+                onImageUrlChange({
+                  target: { value: example.value },
+                } as React.ChangeEvent<HTMLInputElement>)
+              }
+              className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
             >
-              Docker Hub
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </p>
-          <InputWithHistory
-            data-testid="docker-input"
-            placeholder="nginx:latest 或 hub.docker.com/r/library/nginx"
-            value={imageUrl}
-            onChange={onImageUrlChange}
-            history={history.items}
-            onSelectHistory={(v) =>
-              onImageUrlChange({
-                target: { value: v },
-              } as React.ChangeEvent<HTMLInputElement>)
-            }
-          />
-          <div className="mt-1 flex flex-wrap gap-2">
-            {[
-              { label: "Nginx", value: "nginx:latest" },
-              { label: "Redis", value: "redis:alpine" },
-            ].map((example) => (
-              <button
-                key={example.label}
-                type="button"
-                onClick={() =>
-                  onImageUrlChange({
-                    target: { value: example.value },
-                  } as React.ChangeEvent<HTMLInputElement>)
-                }
-                className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                试试 {example.label}
-              </button>
-            ))}
-          </div>
+              试试 {example.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -388,7 +386,7 @@ export default function DockerDownloader({
       )}
 
       {downloadUrl && (
-        <Card className="border border-primary/30 bg-primary/6 shadow-apple">
+        <Card className="border border-primary/30 bg-primary/5 shadow-apple">
           <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3 min-w-0 sm:items-center">

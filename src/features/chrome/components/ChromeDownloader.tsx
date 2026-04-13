@@ -79,85 +79,83 @@ export default function ChromeDownloader({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
-      <div className="">
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            输入名称搜索或直接粘贴 ID，或前往{" "}
-            <a
-              href="https://chromewebstore.google.com/category/extensions"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-primary hover:underline"
-            >
-              Chrome Store
-              <ExternalLink className="h-3 w-3" />
-            </a>{" "}
-          </p>
-          <InputWithHistory
-            data-testid="chrome-input"
-            placeholder="扩展名称、ID 或商店链接"
-            value={extensionUrl}
-            onChange={onUrlChange}
-            history={history.items}
-            onSelectHistory={(v) =>
-              onUrlChange({
-                target: { value: v },
-              } as React.ChangeEvent<HTMLInputElement>)
-            }
-          />
-          {searching && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              搜索中...
-            </div>
-          )}
-          {searchResults.length > 0 && (
-            <div className="space-y-0.5 rounded-apple border border-border/70 bg-popover p-1 shadow-apple-button">
-              {searchResults.map((result) => (
-                <button
-                  key={result.id}
-                  type="button"
-                  onClick={() => {
-                    selectSearchResult(result);
-                  }}
-                  className="flex w-full items-start gap-2.5 rounded-apple-sm px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-secondary sm:items-center"
-                >
-                  <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="min-w-0 flex-1 break-words sm:truncate">
-                    {result.name}
-                  </span>
-                  <span className="ml-auto hidden flex-shrink-0 text-xs text-muted-foreground sm:inline">
-                    {result.id.slice(0, 8)}…
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="mt-1 flex flex-wrap gap-2">
-            {[
-              {
-                label: "沉浸式翻译",
-                value: "bpoadfkcbjbfhfodiogcnhhhpibjhbnh",
-              },
-              {
-                label: "篡改猴",
-                value: "dhdgffkkebhmkfjojejmpbldmpobfkfo",
-              },
-            ].map((example) => (
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          输入名称搜索或直接粘贴 ID，或前往{" "}
+          <a
+            href="https://chromewebstore.google.com/category/extensions"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 text-primary hover:underline"
+          >
+            Chrome Store
+            <ExternalLink className="h-3 w-3" />
+          </a>{" "}
+        </p>
+        <InputWithHistory
+          data-testid="chrome-input"
+          placeholder="扩展名称、ID 或商店链接"
+          value={extensionUrl}
+          onChange={onUrlChange}
+          history={history.items}
+          onSelectHistory={(v) =>
+            onUrlChange({
+              target: { value: v },
+            } as React.ChangeEvent<HTMLInputElement>)
+          }
+        />
+        {searching && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            搜索中...
+          </div>
+        )}
+        {searchResults.length > 0 && (
+          <div className="space-y-0.5 rounded-apple border border-border/70 bg-popover p-1 shadow-apple-button">
+            {searchResults.map((result) => (
               <button
-                key={example.label}
+                key={result.id}
                 type="button"
-                onClick={() =>
-                  onUrlChange({
-                    target: { value: example.value },
-                  } as React.ChangeEvent<HTMLInputElement>)
-                }
-                className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
+                onClick={() => {
+                  selectSearchResult(result);
+                }}
+                className="flex w-full items-start gap-2.5 rounded-apple-sm px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-secondary sm:items-center"
               >
-                试试 {example.label}
+                <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                <span className="min-w-0 flex-1 break-words sm:truncate">
+                  {result.name}
+                </span>
+                <span className="ml-auto hidden flex-shrink-0 text-xs text-muted-foreground sm:inline">
+                  {result.id.slice(0, 8)}…
+                </span>
               </button>
             ))}
           </div>
+        )}
+        <div className="mt-1 flex flex-wrap gap-2">
+          {[
+            {
+              label: "沉浸式翻译",
+              value: "bpoadfkcbjbfhfodiogcnhhhpibjhbnh",
+            },
+            {
+              label: "篡改猴",
+              value: "dhdgffkkebhmkfjojejmpbldmpobfkfo",
+            },
+          ].map((example) => (
+            <button
+              key={example.label}
+              type="button"
+              onClick={() =>
+                onUrlChange({
+                  target: { value: example.value },
+                } as React.ChangeEvent<HTMLInputElement>)
+              }
+              className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              试试 {example.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -295,7 +293,7 @@ export default function ChromeDownloader({
       )}
 
       {(downloadUrls.crx || downloadUrls.zip) && (
-        <Card className="border border-primary/30 bg-primary/6 shadow-apple">
+        <Card className="border border-primary/30 bg-primary/5 shadow-apple">
           <CardContent className="p-4 sm:p-5 space-y-3">
             {downloadUrls.crx && (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

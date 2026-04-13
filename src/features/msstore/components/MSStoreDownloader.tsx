@@ -231,46 +231,44 @@ export default function MSStoreDownloader({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
-      <div className="">
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            输入 MS 应用链接，或前往
-            <a
-              href="https://apps.microsoft.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"
-            >
-              Microsoft Store
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </p>
-          <InputWithHistory
-            data-testid="msstore-input"
-            className="h-12"
-            placeholder={placeholder}
-            value={query}
-            onChange={onQueryChange}
-            history={history.items}
-            onSelectHistory={(value) =>
-              onQueryChange({
-                target: { value },
-              } as React.ChangeEvent<HTMLInputElement>)
-            }
-          />
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          输入 MS 应用链接，或前往
+          <a
+            href="https://apps.microsoft.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"
+          >
+            Microsoft Store
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </p>
+        <InputWithHistory
+          data-testid="msstore-input"
+          className="h-12"
+          placeholder={placeholder}
+          value={query}
+          onChange={onQueryChange}
+          history={history.items}
+          onSelectHistory={(value) =>
+            onQueryChange({
+              target: { value },
+            } as React.ChangeEvent<HTMLInputElement>)
+          }
+        />
 
-          <div className="mt-1 flex flex-wrap gap-2">
-            {examples.map((example) => (
-              <button
-                key={example.value}
-                type="button"
-                onClick={() => fillExample(example.value)}
-                className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                试试 {example.label}
-              </button>
-            ))}
-          </div>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {examples.map((example) => (
+            <button
+              key={example.value}
+              type="button"
+              onClick={() => fillExample(example.value)}
+              className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              试试 {example.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -295,7 +293,7 @@ export default function MSStoreDownloader({
       {result && (
         <>
           {fileEntries.length > 0 ? (
-            <Card className="border border-emerald-500/35 bg-emerald-500/8 shadow-apple">
+            <Card className="border border-emerald-500/35 bg-emerald-500/10 shadow-apple">
               <CardContent className="p-4 sm:p-5 space-y-3">
                 <div className="rounded-apple border border-border/60 bg-background/70 p-3 shadow-apple-button">
                   <p className="mb-3 text-[11px] font-medium tracking-[0.08em] text-muted-foreground/80">

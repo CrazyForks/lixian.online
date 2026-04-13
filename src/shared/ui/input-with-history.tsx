@@ -6,6 +6,8 @@ import { Input } from "@/shared/ui/input";
 import { cn } from "@/shared/lib/util";
 import { History, X } from "lucide-react";
 
+const VIEWPORT_MARGIN = 12;
+
 interface InputWithHistoryProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   history: string[];
@@ -18,7 +20,6 @@ export function InputWithHistory({
   value,
   ...inputProps
 }: InputWithHistoryProps) {
-  const VIEWPORT_MARGIN = 12;
   const [mounted, setMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0, width: 0 });
@@ -46,7 +47,7 @@ export function InputWithHistory({
     );
 
     setPos({ top: rect.bottom + 4, left, width });
-  }, [VIEWPORT_MARGIN]);
+  }, []);
 
   React.useEffect(() => {
     if (!showDropdown) return;
