@@ -31,13 +31,15 @@ const tabLoaders: Record<string, TabLoader> = {
   msstore: () => import("@/features/msstore/components/MSStoreDownloader"),
 };
 
-const tabComponents: Record<string, ComponentType<DownloaderProps>> =
-  Object.fromEntries(
-    featureTabs.map((tab) => [
-      tab.id,
-      dynamic(tabLoaders[tab.id], { ssr: false, loading: DynamicFallback }),
-    ]),
-  );
+const tabComponents: Record<
+  string,
+  ComponentType<DownloaderProps>
+> = Object.fromEntries(
+  featureTabs.map((tab) => [
+    tab.id,
+    dynamic(tabLoaders[tab.id], { ssr: false, loading: DynamicFallback }),
+  ]),
+);
 
 function getInitialQuery() {
   if (typeof window === "undefined") return "";
@@ -68,11 +70,11 @@ export default function TabPage({ tab }: Props) {
   }, []);
 
   return (
-    <main className="min-h-screen bg-background flex flex-col">
-      <div className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-6 py-12 md:py-24">
+    <main className="min-h-screen bg-background">
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 pb-8 pt-6 sm:px-6 sm:pb-12 sm:pt-10 md:py-20">
         {/* Hero Section */}
-        <div className="text-center mb-8 md:mb-12 animate-fade-in">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-2 md:mb-3 tracking-tight flex items-baseline justify-center gap-0.5 sm:gap-1">
+        <div className="mb-5 animate-fade-in text-center sm:mb-10 md:mb-12">
+          <h1 className="mb-2 flex flex-wrap items-baseline justify-center gap-1 text-[1.75rem] font-bold tracking-tight text-foreground min-[360px]:text-3xl sm:mb-3 sm:text-4xl md:text-5xl">
             <span>Lixian</span>
             <Image
               src="/favicon.ico"
@@ -83,32 +85,27 @@ export default function TabPage({ tab }: Props) {
             />
             <span>Online</span>
           </h1>
-          <p className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+          <p className="mx-auto max-w-md px-2 text-sm leading-relaxed text-muted-foreground sm:px-0 sm:text-base">
             {site.description}
           </p>
         </div>
 
         {/* Main Card */}
-        <Card className="shadow-apple-lg border-0 bg-card/80 backdrop-blur-xl rounded-apple-lg overflow-visible animate-slide-up">
+        <Card className="animate-slide-up overflow-visible rounded-[1.25rem] border-0 bg-card/80 shadow-apple-lg backdrop-blur-xl">
           <CardContent className="p-0">
-            <div className="border-b border-border/40 px-3 sm:px-6 pt-4 sm:pt-6 pb-0">
+            <div className="px-3 pb-0 pt-4 sm:px-6 sm:pt-6">
               <Tabs
                 value={activeTab}
                 onValueChange={handleTabChange}
                 className="w-full"
               >
-                <TabsList
-                  className="grid w-full bg-secondary/60 backdrop-blur-sm rounded-apple p-1 border border-border/40 h-10 sm:h-12"
-                  style={{
-                    gridTemplateColumns: `repeat(${featureTabs.length}, minmax(0, 1fr))`,
-                  }}
-                >
+                <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-apple border border-border/50 bg-secondary/60 p-1 backdrop-blur-sm min-[360px]:grid-cols-2 sm:grid-cols-4">
                   {featureTabs.map((ft) => (
                     <TabsTrigger
                       key={ft.id}
                       value={ft.id}
                       data-testid={`tab-${ft.id}`}
-                      className="rounded-apple-sm font-medium text-xs sm:text-sm py-2 sm:py-2.5 px-2 sm:px-4 data-[state=active]:bg-background data-[state=active]:shadow-apple-button data-[state=active]:text-foreground transition-all duration-200 gap-1.5 sm:gap-2"
+                      className="min-w-0 gap-1.5 rounded-apple-sm px-2.5 py-2 text-xs font-medium whitespace-normal data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-apple-button sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                     >
                       <ft.icon className="h-4 w-4 flex-shrink-0" />
                       {ft.shortLabel ? (
@@ -126,7 +123,7 @@ export default function TabPage({ tab }: Props) {
             </div>
 
             {/* Tab Content */}
-            <div className="p-5 sm:p-8 md:p-10">
+            <div className="p-4 sm:p-8 md:p-10">
               {featureTabs.map((ft) => {
                 const Component = tabComponents[ft.id];
                 return (
@@ -135,9 +132,7 @@ export default function TabPage({ tab }: Props) {
                     className={activeTab !== ft.id ? "hidden" : undefined}
                   >
                     <Component
-                      defaultValue={
-                        tab === ft.id ? initialQuery : undefined
-                      }
+                      defaultValue={tab === ft.id ? initialQuery : undefined}
                       onQueryChange={handleQueryChange}
                     />
                   </div>
@@ -148,9 +143,9 @@ export default function TabPage({ tab }: Props) {
         </Card>
 
         {/* Footer */}
-        <footer className="text-center mt-8 md:mt-12 space-y-2 animate-fade-in">
+        <footer className="mt-6 space-y-2 text-center animate-fade-in sm:mt-8 md:mt-12">
           <p
-            className="text-xs text-muted-foreground/70"
+            className="text-[11px] text-muted-foreground/70 sm:text-xs"
             title={`构建时间: ${BUILD_TIME} | Commit: ${COMMIT_HASH}`}
           >
             版本 v{APP_VERSION}

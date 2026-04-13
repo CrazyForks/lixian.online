@@ -196,6 +196,7 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh;
     background: rgb(var(--background));
+    overflow-x: clip;
   }
 
   /* Apple-style typography scale */
@@ -267,5 +268,14 @@
     outline: 2px solid rgb(var(--ring));
     outline-offset: 2px;
     border-radius: var(--radius);
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

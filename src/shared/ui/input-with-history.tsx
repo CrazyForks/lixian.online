@@ -18,6 +18,7 @@ export function InputWithHistory({
   value,
   ...inputProps
 }: InputWithHistoryProps) {
+  const VIEWPORT_MARGIN = 12;
   const [mounted, setMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0, width: 0 });
@@ -38,8 +39,14 @@ export function InputWithHistory({
   const updatePosition = React.useCallback(() => {
     if (!inputWrapperRef.current) return;
     const rect = inputWrapperRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-  }, []);
+    const width = Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2);
+    const left = Math.min(
+      Math.max(rect.left, VIEWPORT_MARGIN),
+      window.innerWidth - VIEWPORT_MARGIN - width,
+    );
+
+    setPos({ top: rect.bottom + 4, left, width });
+  }, [VIEWPORT_MARGIN]);
 
   React.useEffect(() => {
     if (!showDropdown) return;
@@ -90,10 +97,10 @@ export function InputWithHistory({
                   key={item}
                   type="button"
                   onClick={() => handleSelect(item)}
-                  className="flex w-full items-center gap-2 rounded-apple-sm px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                  className="flex w-full items-start gap-2 rounded-apple-sm px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-secondary sm:items-center"
                 >
                   <History className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="truncate">{item}</span>
+                  <span className="min-w-0 break-all sm:truncate">{item}</span>
                 </button>
               ))}
             </div>

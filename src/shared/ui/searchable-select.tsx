@@ -271,17 +271,17 @@ export function SearchableSelect({
         aria-expanded={open}
         aria-haspopup="listbox"
         className={cn(
-          "flex h-12 w-full items-center justify-between rounded-apple border border-border bg-background/60 backdrop-blur-sm px-4 py-3 text-sm font-medium shadow-apple-button transition-all duration-200",
+          "flex h-12 w-full items-center justify-between gap-3 rounded-apple border border-border bg-background/60 px-4 py-3 text-left text-sm font-medium shadow-apple-button backdrop-blur-sm transition-all duration-200",
           "hover:border-border/80 hover:bg-background/80",
           open && "ring-2 ring-ring ring-offset-2 border-ring/50 bg-background",
         )}
       >
-        <span className={cn(!value && "text-muted-foreground")}>
+        <span className={cn("min-w-0 flex-1 break-all sm:truncate", !value && "text-muted-foreground")}>
           {selectedLabel || placeholder}
         </span>
         <ChevronDown
           className={cn(
-            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+            "h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200",
             open && "rotate-180",
           )}
         />

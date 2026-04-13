@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import { useMemo, useState } from "react";
 import { Download, Package, ExternalLink } from "lucide-react";
-import { MicrosoftStoreIcon } from "@/shared/ui/icons";
 import { useMSStoreDownloader } from "../hooks/useMSStoreDownloader";
 import { MSStoreDownloadFile } from "../types";
 import { getMSStoreDownloadHref } from "../download";
@@ -163,7 +162,10 @@ interface MSStoreDownloaderProps {
   onQueryChange?: (q: string) => void;
 }
 
-export default function MSStoreDownloader({ defaultValue, onQueryChange: onQuerySync }: MSStoreDownloaderProps) {
+export default function MSStoreDownloader({
+  defaultValue,
+  onQueryChange: onQuerySync,
+}: MSStoreDownloaderProps) {
   const { toast } = useToast();
   const history = useHistory("history:msstore");
   const {
@@ -229,44 +231,46 @@ export default function MSStoreDownloader({ defaultValue, onQueryChange: onQuery
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
-      <div className="space-y-3">
-        <p className="text-xs text-muted-foreground">
-          输入 MS 应用链接，或前往
-          <a
-            href="https://apps.microsoft.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"
-          >
-            Microsoft Store
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        </p>
-        <InputWithHistory
-          data-testid="msstore-input"
-          className="h-12"
-          placeholder={placeholder}
-          value={query}
-          onChange={onQueryChange}
-          history={history.items}
-          onSelectHistory={(value) =>
-            onQueryChange({
-              target: { value },
-            } as React.ChangeEvent<HTMLInputElement>)
-          }
-        />
-
-        <div className="flex flex-wrap gap-2 mt-1">
-          {examples.map((example) => (
-            <button
-              key={example.value}
-              type="button"
-              onClick={() => fillExample(example.value)}
-              className="text-xs px-2.5 py-1 rounded-full bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+      <div className="">
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            输入 MS 应用链接，或前往
+            <a
+              href="https://apps.microsoft.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"
             >
-              试试 {example.label}
-            </button>
-          ))}
+              Microsoft Store
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </p>
+          <InputWithHistory
+            data-testid="msstore-input"
+            className="h-12"
+            placeholder={placeholder}
+            value={query}
+            onChange={onQueryChange}
+            history={history.items}
+            onSelectHistory={(value) =>
+              onQueryChange({
+                target: { value },
+              } as React.ChangeEvent<HTMLInputElement>)
+            }
+          />
+
+          <div className="mt-1 flex flex-wrap gap-2">
+            {examples.map((example) => (
+              <button
+                key={example.value}
+                type="button"
+                onClick={() => fillExample(example.value)}
+                className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground shadow-apple-button transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                试试 {example.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -283,7 +287,6 @@ export default function MSStoreDownloader({ defaultValue, onQueryChange: onQuery
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            <MicrosoftStoreIcon className="h-4 w-4" />
             解析应用信息
           </span>
         )}
@@ -292,19 +295,24 @@ export default function MSStoreDownloader({ defaultValue, onQueryChange: onQuery
       {result && (
         <>
           {fileEntries.length > 0 ? (
-            <Card className="border border-emerald-500/30 bg-emerald-500/5">
+            <Card className="border border-emerald-500/35 bg-emerald-500/8 shadow-apple">
               <CardContent className="p-4 sm:p-5 space-y-3">
-                <SearchableSelect
-                  value={selectedFileName}
-                  options={fileOptions}
-                  placeholder="选择下载文件"
-                  onValueChange={setSelectedFileNameOverride}
-                />
+                <div className="rounded-apple border border-border/60 bg-background/70 p-3 shadow-apple-button">
+                  <p className="mb-3 text-[11px] font-medium tracking-[0.08em] text-muted-foreground/80">
+                    选择文件
+                  </p>
+                  <SearchableSelect
+                    value={selectedFileName}
+                    options={fileOptions}
+                    placeholder="选择下载文件"
+                    onValueChange={setSelectedFileNameOverride}
+                  />
+                </div>
 
                 {selectedFile ? (
                   <div className="rounded-md border border-border/60 bg-background/60 p-4 sm:p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3 min-w-0 sm:items-center">
                         <div className="flex-shrink-0 w-9 h-9 rounded-apple-sm bg-primary/10 flex items-center justify-center">
                           <Package className="h-4 w-4 text-primary" />
                         </div>
@@ -331,14 +339,14 @@ export default function MSStoreDownloader({ defaultValue, onQueryChange: onQuery
                         href={selectedFileDownloadHref}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex-shrink-0 self-end sm:self-auto"
+                        className="w-full flex-shrink-0 sm:w-auto"
                         data-testid="msstore-download-link"
                       >
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="gap-1.5"
+                          className="w-full gap-1.5 sm:w-auto"
                         >
                           <Download className="h-3.5 w-3.5" />
                           下载
