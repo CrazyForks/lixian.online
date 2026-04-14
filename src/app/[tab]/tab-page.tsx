@@ -27,7 +27,7 @@ const DynamicFallback = () => (
 const tabLoaders: Record<string, TabLoader> = {
   vscode: () => import("@/features/vscode/components/VSCodeDownloader"),
   chrome: () => import("@/features/chrome/components/ChromeDownloader"),
-  edge: () => import("@/features/edge/components/EdgeDownloader"),
+  msedge: () => import("@/features/edge/components/EdgeDownloader"),
   docker: () => import("@/features/docker/components/DockerDownloader"),
   msstore: () => import("@/features/msstore/components/MSStoreDownloader"),
 };

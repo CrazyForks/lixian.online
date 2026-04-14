@@ -23,7 +23,7 @@ interface Props {
 
 export default function EdgeDownloader({ defaultValue, onQueryChange }: Props) {
   const { toast } = useToast();
-  const history = useHistory("history:edge");
+  const history = useHistory("history:msedge");
   const {
     extensionQuery,
     extensionInfo,

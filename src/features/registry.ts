@@ -28,7 +28,7 @@ export interface FeatureTabConfig {
 export const featureTabs: FeatureTabConfig[] = [
   { id: "vscode", icon: VSCodeIcon, label: "VSCode 插件", shortLabel: "VSCode" },
   { id: "chrome", icon: ChromeIcon, label: "Chrome 拓展", shortLabel: "Chrome" },
-  { id: "edge", icon: EdgeIcon, label: "Edge 拓展", shortLabel: "Edge" },
+  { id: "msedge", icon: EdgeIcon, label: "Edge 拓展", shortLabel: "Edge" },
   { id: "docker", icon: DockerIcon, label: "Docker 镜像", shortLabel: "Docker" },
   { id: "msstore", icon: MicrosoftStoreIcon, label: "Microsoft 商店", shortLabel: "MS商店" },
 ];

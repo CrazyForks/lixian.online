@@ -77,7 +77,7 @@ test("Edge flow resolves a store URL and prepares CRX and ZIP downloads", async 
   );
 
   await page.goto("/");
-  await page.getByTestId("tab-edge").click();
+  await page.getByTestId("tab-msedge").click();
 
   await page.getByTestId("edge-input").fill(edgeExtensionUrl);
   await page.getByTestId("edge-submit").click();
@@ -117,7 +117,7 @@ test("Edge flow offers search suggestions before resolving details", async ({
   await mockEdgeApis(page);
 
   await page.goto("/");
-  await page.getByTestId("tab-edge").click();
+  await page.getByTestId("tab-msedge").click();
 
   await page.getByTestId("edge-input").fill("ublock");
   await expect(
