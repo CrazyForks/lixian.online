@@ -140,6 +140,23 @@ export async function mockDockerApis(page: Page, options: MockDockerOptions = {}
   });
 
   await page.route("**/api/docker/manifest**", async (route) => {
+    const url = new URL(route.request().url(), "http://localhost");
+    const platform = url.searchParams.get("platform");
+
+    // Without platform param: return available platforms list
+    if (!platform) {
+      await fulfillJson(route, {
+        type: "manifest_list",
+        platforms: [
+          { architecture: "amd64", os: "linux", digest: `sha256:${"c".repeat(64)}` },
+          { architecture: "arm64", os: "linux", digest: `sha256:${"d".repeat(64)}` },
+          { architecture: "arm", os: "linux", variant: "v7", digest: `sha256:${"e".repeat(64)}` },
+        ],
+      });
+      return;
+    }
+
+    // With platform param: return actual manifest
     const layers = [
       {
         mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",

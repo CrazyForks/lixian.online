@@ -7,11 +7,11 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import {
   Download,
-  Info,
   Archive,
   Search,
   ExternalLink,
   Layers,
+  Cpu,
 } from "lucide-react";
 import { useDockerDownloader } from "../hooks/useDockerDownloader";
 import { dockerService } from "../api/DockerService";
@@ -49,8 +49,11 @@ export default function DockerDownloader({
     manifestLoading,
     imageNotFound,
     searchCandidates,
+    availablePlatforms,
+    selectedPlatform,
     onImageUrlChange,
     onTagChange,
+    onPlatformChange,
     handleSubmit,
     handleDownload,
   } = useDockerDownloader(defaultValue);
@@ -165,15 +168,37 @@ export default function DockerDownloader({
 
       {tagList.length > 0 && (
         <div className="rounded-apple-lg border border-border/60 bg-background/70 p-3 shadow-apple-button sm:p-4">
-          <p className="mb-3 text-[11px] font-medium tracking-[0.08em] text-muted-foreground/80">
-            选择标签
-          </p>
-          <SearchableSelect
-            value={imageInfo?.tag || ""}
-            options={tagList}
-            placeholder="选择标签"
-            onValueChange={onTagChange}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <p className="mb-2 text-[11px] font-medium tracking-[0.08em] text-muted-foreground/80">
+                选择版本
+              </p>
+              <SearchableSelect
+                value={imageInfo?.tag || ""}
+                options={tagList}
+                placeholder="选择版本"
+                onValueChange={onTagChange}
+              />
+            </div>
+            {availablePlatforms.length > 0 && (
+              <div className="min-w-0 sm:w-48">
+                <div className="mb-2 flex items-center gap-1">
+                  <Cpu className="h-3 w-3 text-muted-foreground/80" />
+                  <p className="text-[11px] font-medium tracking-[0.08em] text-muted-foreground/80">
+                    架构
+                  </p>
+                </div>
+                <SearchableSelect
+                  value={selectedPlatform}
+                  options={availablePlatforms.map(p =>
+                    p.variant ? `${p.os}/${p.architecture}/${p.variant}` : `${p.os}/${p.architecture}`
+                  )}
+                  placeholder="选择架构"
+                  onValueChange={onPlatformChange}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -251,29 +276,6 @@ export default function DockerDownloader({
 
       {tagList.length > 0 && imageInfo?.tag && (
         <div className="space-y-4">
-          {/* Image Info */}
-          <Card className="border border-border/70 bg-secondary/40 shadow-apple">
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-9 h-9 rounded-apple-sm bg-primary/10 flex items-center justify-center mt-0.5">
-                  <Info className="h-4 w-4 text-primary" />
-                </div>
-                <div className="text-sm space-y-1 min-w-0">
-                  <p className="font-medium text-foreground">
-                    {imageInfo.repository}
-                  </p>
-                  <p className="text-muted-foreground">
-                    仓库: {imageInfo.registry}
-                  </p>
-                  <p className="text-muted-foreground">
-                    命名空间: {imageInfo.namespace || "library"}
-                  </p>
-                  <p className="text-muted-foreground">标签: {imageInfo.tag}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Layer sizes */}
           {manifestLoading && (
             <Card className="border border-border/70 bg-secondary/40 shadow-apple">
@@ -334,7 +336,7 @@ export default function DockerDownloader({
             ) : (
               <span className="flex items-center justify-center gap-2">
                 <Download className="h-4 w-4" />
-                下载 Docker 镜像
+                一键打包
               </span>
             )}
           </Button>
@@ -342,86 +344,88 @@ export default function DockerDownloader({
       )}
 
       {downloadProgress && (
-        <Card className="border border-border/70 bg-secondary/40 shadow-apple">
+        <Card className={`shadow-apple ${downloadProgress.status === "completed" && downloadUrl ? "border-primary/30 bg-primary/5" : "border-border/70 bg-secondary/40"}`}>
           <CardContent className="p-4 sm:p-5">
             <div className="space-y-3">
-              <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-foreground font-medium">
-                  {downloadProgress.status === "downloading"
-                    ? `下载中... 第 ${downloadProgress.layerIndex}/${downloadProgress.totalLayers} 层`
-                    : downloadProgress.status === "packing"
-                      ? "打包中..."
-                      : downloadProgress.status === "completed"
-                        ? "下载完成"
-                        : "下载出错"}
-                </span>
-                {downloadProgress.status === "downloading" &&
-                  downloadProgress.totalSize > 0 && (
-                    <span className="text-xs text-muted-foreground tabular-nums sm:text-sm">
-                      {formatBytes(
-                        downloadProgress.downloadedSize +
-                          downloadProgress.currentLayerDownloaded,
-                      )}{" "}
-                      / {formatBytes(downloadProgress.totalSize)}
+              {/* Progress header */}
+              {downloadProgress.status !== "completed" && (
+                <>
+                  <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-foreground font-medium">
+                      {downloadProgress.status === "downloading"
+                        ? `下载中... 第 ${downloadProgress.layerIndex}/${downloadProgress.totalLayers} 层`
+                        : downloadProgress.status === "packing"
+                          ? "打包中..."
+                          : "下载出错"}
                     </span>
-                  )}
-              </div>
-              <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-primary h-full rounded-full transition-all duration-150 ease-out"
-                  style={{ width: `${Math.min(progressPercent, 100)}%` }}
-                />
-              </div>
-              {downloadProgress.status === "downloading" &&
-                downloadProgress.currentLayerSize > 0 && (
-                  <div className="text-xs text-muted-foreground tabular-nums">
-                    当前层:{" "}
-                    {formatBytes(downloadProgress.currentLayerDownloaded)} /{" "}
-                    {formatBytes(downloadProgress.currentLayerSize)}
+                    {downloadProgress.status === "downloading" &&
+                      downloadProgress.totalSize > 0 && (
+                        <span className="text-xs text-muted-foreground tabular-nums sm:text-sm">
+                          {formatBytes(
+                            downloadProgress.downloadedSize +
+                              downloadProgress.currentLayerDownloaded,
+                          )}{" "}
+                          / {formatBytes(downloadProgress.totalSize)}
+                        </span>
+                      )}
                   </div>
-                )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-150 ease-out"
+                      style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                    />
+                  </div>
+                  {downloadProgress.status === "downloading" &&
+                    downloadProgress.currentLayerSize > 0 && (
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        当前层:{" "}
+                        {formatBytes(downloadProgress.currentLayerDownloaded)} /{" "}
+                        {formatBytes(downloadProgress.currentLayerSize)}
+                      </div>
+                    )}
+                </>
+              )}
 
-      {downloadUrl && (
-        <Card className="border border-primary/30 bg-primary/5 shadow-apple">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3 min-w-0 sm:items-center">
-                <div className="flex-shrink-0 w-9 h-9 rounded-apple-sm bg-primary/10 flex items-center justify-center">
-                  <Archive className="h-4 w-4 text-primary" />
+              {/* Completed: download link */}
+              {downloadProgress.status === "completed" && downloadUrl && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3 min-w-0 sm:items-center">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-apple-sm bg-primary/10 flex items-center justify-center">
+                      <Archive className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground break-all sm:truncate">
+                        {imageInfo
+                          ? dockerService.getDownloadFilename(imageInfo, selectedPlatform?.split('/')?.[1])
+                          : "docker-image.tar"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        docker load 导入
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={downloadUrl}
+                    download={
+                      imageInfo
+                        ? dockerService.getDownloadFilename(imageInfo, selectedPlatform?.split('/')?.[1])
+                        : "docker-image.tar"
+                    }
+                    className="w-full flex-shrink-0 sm:w-auto"
+                    data-testid="docker-download-link"
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5 sm:w-auto"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      下载
+                    </Button>
+                  </a>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground break-all sm:truncate">
-                    {imageInfo?.repository}-{imageInfo?.tag}.tar
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    docker load 导入
-                  </p>
-                </div>
-              </div>
-              <a
-                href={downloadUrl}
-                download={
-                  imageInfo
-                    ? `${imageInfo.repository}-${imageInfo.tag}.tar`
-                    : "docker-image.tar"
-                }
-                className="w-full flex-shrink-0 sm:w-auto"
-                data-testid="docker-download-link"
-              >
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="w-full gap-1.5 sm:w-auto"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  下载
-                </Button>
-              </a>
+              )}
             </div>
           </CardContent>
         </Card>

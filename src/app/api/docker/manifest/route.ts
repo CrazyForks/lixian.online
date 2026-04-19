@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const repository = searchParams.get('repository');
     const tag = searchParams.get('tag') || 'latest';
     const token = searchParams.get('token');
+    const platform = searchParams.get('platform'); // e.g. "linux/arm64" or "linux/arm/v7"
 
     if (!repository) {
       return NextResponse.json(
@@ -62,24 +63,69 @@ export async function GET(request: NextRequest) {
       manifestCount: data.manifests?.length
     });
 
-    // 如果是 manifest list，选择 amd64/linux 版本
+    // 如果是 manifest list，按平台筛选或返回可用平台列表
     if (data.mediaType === 'application/vnd.docker.distribution.manifest.list.v2+json' ||
         data.mediaType === 'application/vnd.oci.image.index.v1+json') {
-      console.log('检测到 manifest list，查找 amd64/linux 版本');
-      
-      const amd64Manifest = data.manifests?.find((manifest: any) => 
-        manifest.platform?.architecture === 'amd64' && 
-        manifest.platform?.os === 'linux'
-      );
-      
+      console.log('检测到 manifest list');
+
+      // 未指定平台时，返回可用平台列表供前端展示
+      if (!platform) {
+        const platforms = (data.manifests ?? [])
+          .filter((m: any) =>
+            m.platform &&
+            m.platform.architecture &&
+            m.platform.os &&
+            m.platform.architecture !== 'unknown' &&
+            m.platform.os !== 'unknown'
+          )
+          .map((m: any) => ({
+            architecture: m.platform.architecture,
+            os: m.platform.os,
+            variant: m.platform.variant || undefined,
+            digest: m.digest,
+          }));
+        return NextResponse.json(
+          { type: 'manifest_list', platforms },
+          {
+            status: 200,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET',
+              'Access-Control-Allow-Headers': 'Content-Type',
+              'Cache-Control': 'public, max-age=3600',
+            },
+          }
+        );
+      }
+
+      // 解析平台参数: "linux/amd64" 或 "linux/arm/v7"
+      const platformParts = platform.split('/');
+      const targetOs = platformParts[0];
+      const targetArch = platformParts[1];
+      const targetVariant = platformParts[2]; // optional
+
+      const matchedManifest = data.manifests?.find((manifest: any) => {
+        const p = manifest.platform;
+        if (!p || p.os !== targetOs || p.architecture !== targetArch) return false;
+        if (targetVariant && p.variant !== targetVariant) return false;
+        if (!targetVariant && targetArch === 'arm' && p.variant) return false;
+        return true;
+      });
+
+      // 如果精确匹配失败且未指定 variant，放宽匹配（忽略 variant）
+      const amd64Manifest = matchedManifest ?? data.manifests?.find((manifest: any) => {
+        const p = manifest.platform;
+        return p && p.os === targetOs && p.architecture === targetArch;
+      });
+
       if (!amd64Manifest) {
         return NextResponse.json(
-          { error: '未找到 amd64/linux 平台的镜像' },
+          { error: `未找到 ${platform} 平台的镜像` },
           { status: 404 }
         );
       }
-      
-      console.log('找到 amd64 manifest，重新获取具体 manifest');
+
+      console.log(`找到 ${platform} manifest，重新获取具体 manifest`);
       
       // 使用 digest 重新获取具体的 manifest
       const specificManifestUrl = `https://registry-1.docker.io/v2/${repoPath}/manifests/${amd64Manifest.digest}`;
