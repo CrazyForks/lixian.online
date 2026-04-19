@@ -1,9 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { dockerService } from "../api/DockerService";
-import { DockerImageInfo, DockerManifest, DockerDownloadProgress, DockerSearchCandidate } from "../types";
+import { DockerImageInfo, DockerManifest, DockerPlatform, DockerDownloadProgress, DockerSearchCandidate } from "../types";
 import { get } from "@/shared/lib/http";
 
 const IMAGE_NOT_FOUND_MESSAGE = "未找到对应镜像，请检查名称或从候选镜像中选择";
+
+function formatPlatform(p: DockerPlatform): string {
+  return p.variant ? `${p.os}/${p.architecture}/${p.variant}` : `${p.os}/${p.architecture}`;
+}
 
 export function useDockerDownloader(initialValue?: string) {
   const [imageUrl, setImageUrl] = useState(initialValue ?? "");
@@ -17,6 +21,9 @@ export function useDockerDownloader(initialValue?: string) {
   const [manifest, setManifest] = useState<DockerManifest | null>(null);
   const [manifestLoading, setManifestLoading] = useState(false);
   const manifestRef = useRef<DockerManifest | null>(null);
+  const [availablePlatforms, setAvailablePlatforms] = useState<DockerPlatform[]>([]);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("");
+  const selectedPlatformRef = useRef<string>("");
 
   // Keep a ref to imageInfo so download callbacks are stable
   const imageInfoRef = useRef(imageInfo);
@@ -31,13 +38,14 @@ export function useDockerDownloader(initialValue?: string) {
     };
   }, []);
 
-  const fetchManifest = useCallback(async (info: DockerImageInfo) => {
+  const fetchManifest = useCallback(async (info: DockerImageInfo, platform?: string) => {
     if (!info.repository || !info.tag) return;
     setManifestLoading(true);
     setManifest(null);
     manifestRef.current = null;
     try {
-      const m = await dockerService.getManifest(info);
+      const effectivePlatform = platform || selectedPlatformRef.current || undefined;
+      const m = await dockerService.getManifest(info, effectivePlatform);
       setManifest(m);
       manifestRef.current = m;
     } catch (error) {
@@ -57,13 +65,49 @@ export function useDockerDownloader(initialValue?: string) {
     setSearchCandidates([]);
     setManifest(null);
     manifestRef.current = null;
+    setAvailablePlatforms([]);
+    setSelectedPlatform("");
+    selectedPlatformRef.current = "";
   }, []);
 
   const onTagChange = useCallback(
     (value: string) => {
       const updated = imageInfoRef.current ? { ...imageInfoRef.current, tag: value } : null;
       setImageInfo(updated);
-      if (updated) fetchManifest(updated);
+      setAvailablePlatforms([]);
+      setSelectedPlatform("");
+      selectedPlatformRef.current = "";
+      setManifest(null);
+      manifestRef.current = null;
+      if (updated) {
+        // Fetch platforms for the new tag
+        dockerService.getAvailablePlatforms({ ...updated }).then(platforms => {
+          setAvailablePlatforms(platforms);
+          if (platforms.length > 0) {
+            // Default to linux/amd64 if available, otherwise first platform
+            const defaultPlatform = platforms.find(p => p.architecture === 'amd64' && p.os === 'linux')
+              || platforms[0];
+            const platformStr = formatPlatform(defaultPlatform);
+            setSelectedPlatform(platformStr);
+            selectedPlatformRef.current = platformStr;
+            fetchManifest(updated, platformStr);
+          } else {
+            // Single-arch image, fetch manifest directly
+            fetchManifest(updated);
+          }
+        });
+      }
+    },
+    [fetchManifest]
+  );
+
+  const onPlatformChange = useCallback(
+    (value: string) => {
+      setSelectedPlatform(value);
+      selectedPlatformRef.current = value;
+      setDownloadUrl("");
+      const info = imageInfoRef.current;
+      if (info) fetchManifest(info, value);
     },
     [fetchManifest]
   );
@@ -105,8 +149,21 @@ export function useDockerDownloader(initialValue?: string) {
           const finalInfo = extracted.tag ? extracted : { ...extracted, tag: tags[0] };
           setImageInfo(finalInfo);
 
-          // 预取 manifest 以展示各层大小
-          fetchManifest(finalInfo);
+          // 获取可用平台列表
+          const platforms = await dockerService.getAvailablePlatforms(finalInfo);
+          setAvailablePlatforms(platforms);
+
+          if (platforms.length > 0) {
+            const defaultPlatform = platforms.find(p => p.architecture === 'amd64' && p.os === 'linux')
+              || platforms[0];
+            const platformStr = formatPlatform(defaultPlatform);
+            setSelectedPlatform(platformStr);
+            selectedPlatformRef.current = platformStr;
+            fetchManifest(finalInfo, platformStr);
+          } else {
+            // 单架构镜像，直接获取 manifest
+            fetchManifest(finalInfo);
+          }
         }
       } catch (error) {
         const axiosError = error as { response?: { status?: number } };
@@ -142,7 +199,8 @@ export function useDockerDownloader(initialValue?: string) {
 
     try {
       // 复用已预取的 manifest，否则重新获取
-      const manifest = manifestRef.current ?? await dockerService.getManifest(info);
+      const currentPlatform = selectedPlatformRef.current || undefined;
+      const manifest = manifestRef.current ?? await dockerService.getManifest(info, currentPlatform);
 
       // 容错处理：检查 manifest 结构
       const layers = manifest?.layers || [];
@@ -210,7 +268,9 @@ export function useDockerDownloader(initialValue?: string) {
       console.log('开始生成 TAR 文件，下载的层数:', downloadedLayers.length);
 
       // 生成 Docker Load TAR 文件
-      const blob = await dockerService.generateDockerLoadTar(manifest, downloadedLayers, info);
+      const archParts = currentPlatform?.split('/');
+      const architecture = archParts?.[1]; // e.g. "arm64" from "linux/arm64"
+      const blob = await dockerService.generateDockerLoadTar(manifest, downloadedLayers, info, architecture);
 
       // Revoke previous blob URL before creating a new one
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
@@ -245,8 +305,11 @@ export function useDockerDownloader(initialValue?: string) {
     manifestLoading,
     imageNotFound,
     searchCandidates,
+    availablePlatforms,
+    selectedPlatform,
     onImageUrlChange,
     onTagChange,
+    onPlatformChange,
     handleSubmit,
     handleDownload,
   };

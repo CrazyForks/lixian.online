@@ -143,13 +143,13 @@ test("Docker flow prepares a docker load tarball", async ({ page }) => {
   await page.getByTestId("docker-input").fill(dockerImage);
   await page.getByTestId("docker-submit").click();
 
-  await expect(page.getByText("标签: latest")).toBeVisible();
+  await expect(page.getByText("选择版本")).toBeVisible();
 
   await page.getByTestId("docker-download").click();
 
   await expect(page.getByTestId("docker-download-link")).toHaveAttribute(
     "download",
-    "nginx-latest.tar",
+    "library-nginx-latest.tar",
   );
   await expect(page.getByTestId("docker-download-link")).toHaveAttribute(
     "href",
@@ -166,14 +166,42 @@ test("Docker flow tolerates invalid manifest layers", async ({ page }) => {
   await page.getByTestId("docker-input").fill(dockerImage);
   await page.getByTestId("docker-submit").click();
 
-  await expect(page.getByText("标签: latest")).toBeVisible();
+  await expect(page.getByText("选择版本")).toBeVisible();
   await expect(page.getByText("镜像层（1 层）")).toBeVisible();
 
   await page.getByTestId("docker-download").click();
 
   await expect(page.getByTestId("docker-download-link")).toHaveAttribute(
     "download",
-    "nginx-latest.tar",
+    "library-nginx-latest.tar",
+  );
+});
+
+test("Docker flow supports ARM architecture selection", async ({ page }) => {
+  await mockDockerApis(page);
+
+  await page.goto("/");
+  await page.getByTestId("tab-docker").click();
+
+  await page.getByTestId("docker-input").fill(dockerImage);
+  await page.getByTestId("docker-submit").click();
+
+  await expect(page.getByText("选择版本")).toBeVisible();
+  await expect(page.getByText("架构")).toBeVisible();
+
+  // Switch to arm64
+  await page.getByRole("button", { name: "linux/amd64" }).click();
+  await page.getByRole("button", { name: "linux/arm64" }).click();
+
+  await page.getByTestId("docker-download").click();
+
+  await expect(page.getByTestId("docker-download-link")).toHaveAttribute(
+    "download",
+    "library-nginx-latest-arm64.tar",
+  );
+  await expect(page.getByTestId("docker-download-link")).toHaveAttribute(
+    "href",
+    /blob:/,
   );
 });
 

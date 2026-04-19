@@ -1,4 +1,4 @@
-import { DockerImageInfo, DockerManifest, DockerSearchCandidate } from "@/features/docker/types";
+import { DockerImageInfo, DockerManifest, DockerPlatform, DockerSearchCandidate } from "@/features/docker/types";
 import { get } from "@/shared/lib/http";
 import { TarBuilder } from "@/features/docker/utils/tarBuilder";
 
@@ -129,23 +129,50 @@ class DockerService {
     return `${this.dockerHubBaseUrl}/search?q=${encodeURIComponent(keyword.trim())}`;
   }
 
-  async getManifest(imageInfo: DockerImageInfo): Promise<DockerManifest> {
+  async getAvailablePlatforms(imageInfo: DockerImageInfo): Promise<DockerPlatform[]> {
     const namespace = imageInfo.namespace || 'library';
-    
-    console.log('getManifest 请求:', { imageInfo, namespace });
-    
+    try {
+      const authUrl = `/api/docker/auth?namespace=${namespace}&repository=${imageInfo.repository}`;
+      const authResponse = await get(authUrl, {});
+      const token = authResponse.data.token;
+
+      // 不传 platform 参数，让后端返回平台列表
+      const manifestUrl = `/api/docker/manifest?namespace=${namespace}&repository=${imageInfo.repository}&tag=${imageInfo.tag}&token=${token}`;
+      const response = await get(manifestUrl, {});
+      const data = response.data;
+
+      if (data.type === 'manifest_list' && Array.isArray(data.platforms)) {
+        return data.platforms;
+      }
+
+      // 单架构镜像，无 manifest list
+      return [];
+    } catch (error) {
+      console.warn('获取可用平台失败:', error);
+      return [];
+    }
+  }
+
+  async getManifest(imageInfo: DockerImageInfo, platform?: string): Promise<DockerManifest> {
+    const namespace = imageInfo.namespace || 'library';
+
+    console.log('getManifest 请求:', { imageInfo, namespace, platform });
+
     try {
       // 首先通过代理获取认证令牌
       const authUrl = `/api/docker/auth?namespace=${namespace}&repository=${imageInfo.repository}`;
       console.log('认证 URL:', authUrl);
-      
+
       const authResponse = await get(authUrl, {});
       const token = authResponse.data.token;
-      
+
       console.log('认证响应:', { hasToken: !!token, tokenLength: token?.length });
-      
+
       // 使用代理获取清单
-      const manifestUrl = `/api/docker/manifest?namespace=${namespace}&repository=${imageInfo.repository}&tag=${imageInfo.tag}&token=${token}`;
+      let manifestUrl = `/api/docker/manifest?namespace=${namespace}&repository=${imageInfo.repository}&tag=${imageInfo.tag}&token=${token}`;
+      if (platform) {
+        manifestUrl += `&platform=${encodeURIComponent(platform)}`;
+      }
       const manifestResponse = await get(manifestUrl, {});
       
       const manifest = manifestResponse.data;
@@ -235,7 +262,7 @@ class DockerService {
     return new Blob(chunks as BlobPart[]);
   }
 
-  async generateDockerLoadTar(manifest: DockerManifest, layers: Blob[], imageInfo: DockerImageInfo): Promise<Blob> {
+  async generateDockerLoadTar(manifest: DockerManifest, layers: Blob[], imageInfo: DockerImageInfo, architecture?: string): Promise<Blob> {
     // 容错处理
     const safeLayers = layers || [];
     const safeManifest = manifest || {};
@@ -251,7 +278,7 @@ class DockerService {
     const tarBuilder = new TarBuilder();
     
     // 构建 Docker Load 格式的 TAR 文件
-    await this.buildDockerLoadTar(tarBuilder, safeManifest, safeLayers, imageInfo);
+    await this.buildDockerLoadTar(tarBuilder, safeManifest, safeLayers, imageInfo, architecture);
     
     const tarData = tarBuilder.build();
     console.log('TAR 文件大小:', tarData.length, 'bytes');
@@ -263,7 +290,8 @@ class DockerService {
     tarBuilder: TarBuilder,
     manifest: DockerManifest,
     layers: Blob[],
-    imageInfo: DockerImageInfo
+    imageInfo: DockerImageInfo,
+    architecture?: string
   ): Promise<void> {
     const namespace = imageInfo.namespace || 'library';
     const fullImageName = namespace ? `${namespace}/${imageInfo.repository}` : imageInfo.repository;
@@ -294,7 +322,7 @@ class DockerService {
 
     // Step 3: config JSON — diff_ids must be uncompressed SHA256 values
     const configJson = {
-      architecture: "amd64",
+      architecture: architecture || "amd64",
       config: {
         Hostname: "", Domainname: "", User: "",
         AttachStdin: false, AttachStdout: false, AttachStderr: false,
@@ -412,9 +440,10 @@ class DockerService {
     return digest.replace('sha256:', '').substring(0, 12);
   }
 
-  getDownloadFilename(imageInfo: DockerImageInfo): string {
+  getDownloadFilename(imageInfo: DockerImageInfo, architecture?: string): string {
     const namespace = imageInfo.namespace ? `${imageInfo.namespace}-` : '';
-    return `${namespace}${imageInfo.repository}-${imageInfo.tag}.tar`;
+    const arch = architecture && architecture !== 'amd64' ? `-${architecture}` : '';
+    return `${namespace}${imageInfo.repository}-${imageInfo.tag}${arch}.tar`;
   }
 }
 

@@ -33,6 +33,13 @@ export interface DockerSearchCandidate {
   pullCount: number;
 }
 
+export interface DockerPlatform {
+  architecture: string;
+  os: string;
+  variant?: string;
+  digest: string;
+}
+
 export interface DockerDownloadProgress {
   layerIndex: number;
   totalLayers: number;
