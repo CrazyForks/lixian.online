@@ -24,7 +24,6 @@ interface ParsedStoreFileName {
   publisherId: string;
   extension: string;
   typeLabel: string;
-  isBlockMap: boolean;
 }
 
 interface FileOptionEntry {
@@ -45,7 +44,6 @@ const FILE_TYPE_LABEL: Record<string, string> = {
   appxbundle: "APPX Bundle",
   msix: "MSIX",
   appx: "APPX",
-  blockmap: "BlockMap",
   eappx: "EAPPX",
   eappxbundle: "EAPPX Bundle",
 };
@@ -55,7 +53,6 @@ const STORE_PACKAGE_EXTENSIONS = new Set([
   "appxbundle",
   "msix",
   "appx",
-  "blockmap",
   "eappx",
   "eappxbundle",
 ]);
@@ -96,7 +93,6 @@ function parseStoreFileName(fileName: string): ParsedStoreFileName | null {
     publisherId,
     extension,
     typeLabel: FILE_TYPE_LABEL[extension] ?? extension.toUpperCase(),
-    isBlockMap: extension === "blockmap",
   };
 }
 

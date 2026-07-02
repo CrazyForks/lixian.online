@@ -8,6 +8,7 @@ import {
   mockDockerApis,
   mockEdgeApis,
   mockMsStoreApi,
+  msstoreBlockMapFileName,
   msstoreFileName,
   msstoreHttpDownloadUrl,
   mockVsCodeApi,
@@ -250,6 +251,13 @@ test("MSStore flow renders a download link from a store URL", async ({
   await page.goto("/");
   await page.getByTestId("tab-msstore").click();
 
+  await expect(page.getByRole("button", { name: "试试 Codex" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /试试 Python/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "试试 Codex" }).click();
+  await expect(page.getByTestId("msstore-input")).toHaveValue(
+    "https://apps.microsoft.com/detail/9plm9xgg6vks",
+  );
+
   await page.getByTestId("msstore-input").fill(msstoreProductUrl);
   await page.getByTestId("msstore-submit").click();
 
@@ -264,6 +272,10 @@ test("MSStore flow renders a download link from a store URL", async ({
     "href",
     msstoreDownloadUrl,
   );
+
+  await page.getByRole("button", { name: /Microsoft\.WindowsTerminal/ }).click();
+  await expect(page.getByText("BlockMap")).toHaveCount(0);
+  await expect(page.getByText(msstoreBlockMapFileName)).toHaveCount(0);
 });
 
 test("MSStore flow auto-detects a raw ProductId", async ({ page }) => {

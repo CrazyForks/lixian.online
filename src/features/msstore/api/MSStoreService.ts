@@ -1,4 +1,5 @@
-import {
+import type {
+  MSStoreDownloadFile,
   MSStoreRequestType,
   MSStoreResolveParams,
   MSStoreResolveResult,
@@ -19,8 +20,8 @@ const EXAMPLES: MSStoreExample[] = [
     value: "https://apps.microsoft.com/detail/9n0dx20hk701",
   },
   {
-    label: "Python 3.13",
-    value: "https://apps.microsoft.com/detail/9pnrbtzxmb4z",
+    label: "Codex",
+    value: "https://apps.microsoft.com/detail/9plm9xgg6vks",
   },
 ];
 
@@ -28,6 +29,10 @@ const PRODUCT_ID_PATTERN = /^[A-Za-z0-9]{12}$/;
 const PACKAGE_FAMILY_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*_[A-Za-z0-9]+$/;
 const CATEGORY_ID_PATTERN =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function isBlockMapFile(file: MSStoreDownloadFile): boolean {
+  return file.name.toLowerCase().endsWith(".blockmap");
+}
 
 class MSStoreService {
   // Default to US / en-us because the global Microsoft Store catalog has the
@@ -84,7 +89,11 @@ class MSStoreService {
       language: this.language,
     });
 
-    return response.data as MSStoreResolveResult;
+    const result = response.data as MSStoreResolveResult;
+    return {
+      ...result,
+      files: result.files?.filter((file) => !isBlockMapFile(file)),
+    };
   }
 }
 

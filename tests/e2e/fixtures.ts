@@ -13,6 +13,8 @@ export const msstoreProductUrl =
 export const msstoreProductId = "9N0DX20HK701";
 export const msstoreFileName =
   "Microsoft.WindowsTerminal_1.22.11781.0_x64__8wekyb3d8bbwe.msixbundle";
+export const msstoreBlockMapFileName =
+  "Microsoft.WindowsTerminal_1.22.11781.0_x64__8wekyb3d8bbwe.msixbundle.blockmap";
 export const msstoreDownloadUrl =
   "https://tlu.dl.delivery.mp.microsoft.com/filestreamingservice/files/sample-msix";
 export const msstoreHttpDownloadUrl =
@@ -235,6 +237,13 @@ export async function mockMsStoreApi(
           expires: "2026-04-12 00:00:00 UTC",
           sha1: "abc123def456",
           size: "12.3 MB",
+        },
+        {
+          name: msstoreBlockMapFileName,
+          url: `${options.downloadUrl ?? msstoreDownloadUrl}.blockmap`,
+          expires: "2026-04-12 00:00:00 UTC",
+          sha1: "def456abc123",
+          size: "128 KB",
         },
       ],
       filesSource: "rg-adguard",

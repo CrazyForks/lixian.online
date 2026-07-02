@@ -133,6 +133,7 @@ Additional feature-specific files:
 - Resolution goes through `GET /api/msstore/resolve`.
 - The resolve route combines display catalog metadata with file links from `store.rg-adguard.net`.
 - HTTP package links from approved Microsoft hosts are re-proxied through `GET /api/msstore/download`; HTTPS links are used directly.
+- `.blockmap` files from the rg-adguard list are filtered out before presenting package choices.
 - File names are parsed and sorted so the UI can present a searchable package picker.
 
 ## API Proxy Pattern
@@ -157,4 +158,4 @@ The browser never calls Docker Hub, Chrome/Edge download endpoints, or the Micro
   - Chrome CRX/ZIP download preparation
   - Edge store-URL resolution and search suggestions
   - Docker TAR creation and invalid-layer tolerance
-  - MSStore raw ProductId detection and HTTP proxy fallback
+  - MSStore raw ProductId detection, `.blockmap` filtering, and HTTP proxy fallback
