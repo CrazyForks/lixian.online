@@ -426,6 +426,7 @@ GET /api/msstore/resolve?type={type}&query={query}&market=US&language=en-us
 文件列表处理规则：
 
 - 会尝试把文件名拆解为组件名、版本、架构、类型
+- 客户端展示时会过滤 `.blockmap` 文件，只保留可直接安装的包文件
 - UI 以可搜索选择器方式展示文件
 - 默认选中排序后的第一项
 
@@ -473,4 +474,5 @@ pnpm build && pnpm start --hostname 127.0.0.1 --port 3100
 - Docker TAR 打包
 - Docker 无效 layer 描述容错
 - MSStore URL / ProductId 识别
+- MSStore `.blockmap` 文件过滤
 - MSStore HTTP 下载代理回退
