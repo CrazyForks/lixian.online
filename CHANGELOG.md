@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.5.5](https://github.com/LiaoGuoYin/lixian.online/compare/lixian-online-v0.5.4...lixian-online-v0.5.5) (2026-07-02)
+
+
+### Features
+
+* **docker:** improve keyword-not-found UX with selectable candidates ([f3200d7](https://github.com/LiaoGuoYin/lixian.online/commit/f3200d7ab3ca75043facba49c7e23939de6e811d))
+* **docker:** improve keyword-not-found UX with selectable candidates ([a4fa1d8](https://github.com/LiaoGuoYin/lixian.online/commit/a4fa1d8e7fcd8815954754d2e5ce21680c67de14))
+
+
+### Bug Fixes
+
+* **msstore:** filter blockmap results ([256a9ac](https://github.com/LiaoGuoYin/lixian.online/commit/256a9acdc5411a57112cbfd9e913558dd1e124bc))
+* **msstore:** filter msstore blockmap results ([e4753db](https://github.com/LiaoGuoYin/lixian.online/commit/e4753dbbb39b9c0b29c07ed28b3899cc485d1a07))
+
+
+### Documentation
+
+* **msstore:** document blockmap filtering ([b068814](https://github.com/LiaoGuoYin/lixian.online/commit/b06881417b27406dc3488c23700d86085621ff10))
+
 ## [0.5.4](https://github.com/LiaoGuoYin/lixian.online/compare/lixian-online-v0.5.3...lixian-online-v0.5.4) (2026-05-16)
 
 
