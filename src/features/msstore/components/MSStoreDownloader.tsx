@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { DownloadResultCard } from "@/shared/ui/download-result-card";
 import { LoadingSpinner } from "@/shared/ui/loading-spinner";
 import { useMemo, useState } from "react";
-import { Package, ExternalLink } from "lucide-react";
+import { Copy, Package, ExternalLink } from "lucide-react";
 import { useMSStoreDownloader } from "../hooks/useMSStoreDownloader";
 import { MSStoreDownloadFile } from "../types";
 import { getMSStoreDownloadHref } from "../download";
@@ -56,6 +56,43 @@ const STORE_PACKAGE_EXTENSIONS = new Set([
   "eappx",
   "eappxbundle",
 ]);
+
+const LAST_MODIFIED_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function formatLastModifiedDate(value?: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return LAST_MODIFIED_FORMATTER.format(date);
+}
+
+async function copyText(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  if (!copied) {
+    throw new Error("浏览器不支持复制到剪贴板");
+  }
+}
 
 function parseStoreFileName(fileName: string): ParsedStoreFileName | null {
   const dotIndex = fileName.lastIndexOf(".");
@@ -207,6 +244,7 @@ export default function MSStoreDownloader({
   const selectedFileDownloadHref = selectedFile
     ? getMSStoreDownloadHref(selectedFile)
     : "";
+  const lastModifiedLabel = formatLastModifiedDate(result?.lastModifiedDate);
 
   const onSubmit = async (e: React.FormEvent) => {
     try {
@@ -221,6 +259,27 @@ export default function MSStoreDownloader({
       toast({
         title: "解析失败",
         description: error instanceof Error ? error.message : "请求失败",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyRealDownloadUrl = async () => {
+    if (!selectedFile) return;
+
+    try {
+      await copyText(selectedFile.url);
+      toast({
+        title: "已复制真实下载地址",
+        description: (
+          <span className="break-all">{selectedFile.url}</span>
+        ),
+      });
+    } catch (error) {
+      toast({
+        title: "复制失败",
+        description:
+          error instanceof Error ? error.message : "无法复制下载地址",
         variant: "destructive",
       });
     }
@@ -325,11 +384,41 @@ export default function MSStoreDownloader({
                           <p className="mt-1 break-all text-[11px] text-muted-foreground/90">
                             哈希: {selectedFile.sha1 || "-"}
                           </p>
+                          {lastModifiedLabel && result.lastModifiedDate ? (
+                            <time
+                              dateTime={result.lastModifiedDate}
+                              title="来自 Microsoft Store Catalog，可能包含商品信息调整"
+                              className="mt-1 block text-[11px] text-muted-foreground/90"
+                              data-testid="msstore-last-modified"
+                            >
+                              商店目录更新: {lastModifiedLabel}
+                            </time>
+                          ) : null}
+                          <p
+                            className="mt-1 max-w-xl truncate text-[11px] text-muted-foreground/90"
+                            title={selectedFile.url}
+                            data-testid="msstore-real-download-url"
+                          >
+                            真实地址: {selectedFile.url}
+                          </p>
                         </>
                       ),
                       href: selectedFileDownloadHref,
                       external: true,
                       testId: "msstore-download-link",
+                      leadingAction: (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="min-w-0 flex-1 gap-1.5 sm:flex-none"
+                          onClick={handleCopyRealDownloadUrl}
+                          data-testid="msstore-copy-real-url"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          复制真实地址
+                        </Button>
+                      ),
                     },
                   ]}
                 />

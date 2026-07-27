@@ -414,6 +414,7 @@ GET /api/msstore/resolve?type={type}&query={query}&market=US&language=en-us
 - `title`
 - `publisherName`
 - `description`
+- `lastModifiedDate`
 - `packageFamilyNames`
 - `categoryId`
 - `files`
@@ -429,12 +430,14 @@ GET /api/msstore/resolve?type={type}&query={query}&market=US&language=en-us
 - 客户端展示时会过滤 `.blockmap` 文件，只保留可直接安装的包文件
 - UI 以可搜索选择器方式展示文件
 - 默认选中排序后的第一项
+- 若 Catalog 返回 `LastModifiedDate`，UI 会按访问者本地时区显示“商店目录更新”；该时间可能包含商品信息调整，不等同于安装包精确发布时间
 
 下载逻辑：
 
 - HTTPS 文件链接直接使用原始 URL
 - HTTP 文件链接若域名命中 allowlist，则改写为 `/api/msstore/download?...`
 - `/api/msstore/download` 仅允许代理 Microsoft 下载域名的 HTTP 链接
+- 每个文件同时展示并支持复制上游返回的真实下载地址；复制按钮位于下载按钮之前，成功 Toast 会显示已复制的完整链接，复制内容不会使用站内部署代理链接
 
 ## 5. API 路由总览
 

@@ -389,6 +389,10 @@ export async function GET(request: NextRequest) {
       title: String(localized.ProductTitle ?? ""),
       publisherName: String(localized.PublisherName ?? ""),
       description: String(localized.ProductDescription ?? ""),
+      lastModifiedDate:
+        typeof product?.LastModifiedDate === "string"
+          ? product.LastModifiedDate
+          : undefined,
       packageFamilyNames: Array.isArray(productProperties.PackageFamilyNames)
         ? (productProperties.PackageFamilyNames as Array<unknown>).map((p) =>
             String(p),

@@ -132,7 +132,9 @@ Additional feature-specific files:
 - The client defaults to `market=US` and `language=en-us` because the global catalog has the best coverage.
 - Resolution goes through `GET /api/msstore/resolve`.
 - The resolve route combines display catalog metadata with file links from `store.rg-adguard.net`.
+- Catalog `LastModifiedDate` is returned as `lastModifiedDate` and shown in the visitor's local timezone as the catalog update time, not an exact package publication timestamp.
 - HTTP package links from approved Microsoft hosts are re-proxied through `GET /api/msstore/download`; HTTPS links are used directly.
+- The selected package places its original-URL copy action before the download button; the success toast shows the copied URL even when the download button uses the same-origin HTTP proxy.
 - `.blockmap` files from the rg-adguard list are filtered out before presenting package choices.
 - File names are parsed and sorted so the UI can present a searchable package picker.
 
@@ -158,4 +160,4 @@ The browser never calls Docker Hub, Chrome/Edge download endpoints, or the Micro
   - Chrome CRX/ZIP download preparation
   - Edge store-URL resolution and search suggestions
   - Docker TAR creation and invalid-layer tolerance
-  - MSStore raw ProductId detection, `.blockmap` filtering, and HTTP proxy fallback
+  - MSStore raw ProductId detection, `.blockmap` filtering, catalog update time, HTTP proxy fallback, and original URL copying

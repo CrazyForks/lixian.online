@@ -19,6 +19,7 @@ export const msstoreDownloadUrl =
   "https://tlu.dl.delivery.mp.microsoft.com/filestreamingservice/files/sample-msix";
 export const msstoreHttpDownloadUrl =
   "http://tlu.dl.delivery.mp.microsoft.com/filestreamingservice/files/sample-msix";
+export const msstoreLastModifiedDate = "2026-07-15T22:58:02.1024794Z";
 
 const emptyZipBuffer = Buffer.from(
   "504b0506000000000000000000000000000000000000",
@@ -227,6 +228,7 @@ export async function mockMsStoreApi(
       title: "Windows Terminal",
       publisherName: "Microsoft Corporation",
       description: "The new Windows Terminal.",
+      lastModifiedDate: msstoreLastModifiedDate,
       packageFamilyNames: ["Microsoft.WindowsTerminal_8wekyb3d8bbwe"],
       market: "CN",
       language: "zh-cn",

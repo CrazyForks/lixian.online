@@ -13,6 +13,7 @@ export interface DownloadResultRow {
   external?: boolean;
   testId?: string;
   buttonLabel?: string;
+  leadingAction?: ReactNode;
 }
 
 interface Props {
@@ -45,6 +46,7 @@ function DownloadResultRow({
   external,
   testId,
   buttonLabel = "下载",
+  leadingAction,
 }: DownloadResultRow) {
   const linkProps: Record<string, string> = {};
   if (download !== undefined) linkProps.download = download;
@@ -68,22 +70,25 @@ function DownloadResultRow({
           )}
         </div>
       </div>
-      <a
-        href={href}
-        {...linkProps}
-        className="w-full flex-shrink-0 sm:w-auto"
-        data-testid={testId}
-      >
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-full gap-1.5 sm:w-auto"
+      <div className="flex w-full flex-shrink-0 gap-2 sm:w-auto">
+        {leadingAction}
+        <a
+          href={href}
+          {...linkProps}
+          className="min-w-0 flex-1 sm:flex-none"
+          data-testid={testId}
         >
-          <Download className="h-3.5 w-3.5" />
-          {buttonLabel}
-        </Button>
-      </a>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full gap-1.5 sm:w-auto"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {buttonLabel}
+          </Button>
+        </a>
+      </div>
     </div>
   );
 }

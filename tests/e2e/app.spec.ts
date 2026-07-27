@@ -11,6 +11,7 @@ import {
   msstoreBlockMapFileName,
   msstoreFileName,
   msstoreHttpDownloadUrl,
+  msstoreLastModifiedDate,
   mockVsCodeApi,
   msstoreDownloadUrl,
   msstoreProductId,
@@ -272,6 +273,13 @@ test("MSStore flow renders a download link from a store URL", async ({
     "href",
     msstoreDownloadUrl,
   );
+  await expect(page.getByTestId("msstore-last-modified")).toHaveAttribute(
+    "datetime",
+    msstoreLastModifiedDate,
+  );
+  await expect(page.getByTestId("msstore-last-modified")).toContainText(
+    "商店目录更新:",
+  );
 
   await page.getByRole("button", { name: /Microsoft\.WindowsTerminal/ }).click();
   await expect(page.getByText("BlockMap")).toHaveCount(0);
@@ -301,6 +309,7 @@ test("MSStore flow auto-detects a raw ProductId", async ({ page }) => {
 test("MSStore flow proxies HTTP download links through same-origin API", async ({
   page,
 }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await mockMsStoreApi(page, { downloadUrl: msstoreHttpDownloadUrl });
 
   await page.goto("/");
@@ -319,6 +328,33 @@ test("MSStore flow proxies HTTP download links through same-origin API", async (
       filename: msstoreFileName,
     }).toString()}`,
   );
+
+  await expect(page.getByTestId("msstore-real-download-url")).toContainText(
+    msstoreHttpDownloadUrl,
+  );
+  const copyPrecedesDownload = await page.evaluate(() => {
+    const copyButton = document.querySelector(
+      '[data-testid="msstore-copy-real-url"]',
+    );
+    const downloadLink = document.querySelector(
+      '[data-testid="msstore-download-link"]',
+    );
+    return Boolean(
+      copyButton &&
+        downloadLink &&
+        copyButton.compareDocumentPosition(downloadLink) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+  expect(copyPrecedesDownload).toBe(true);
+  await page.getByTestId("msstore-copy-real-url").click();
+  await expect(
+    page.getByText("已复制真实下载地址", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(msstoreHttpDownloadUrl, { exact: true })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe(msstoreHttpDownloadUrl);
 });
 
 test("MSStore flow rejects unrecognized input without calling the API", async ({
